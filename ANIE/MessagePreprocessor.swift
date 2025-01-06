@@ -25,9 +25,24 @@ class MessageClassifierInput: MLFeatureProvider {
     }
 }
 
-// Output can remain a struct
-struct MessageClassifierOutput {
+// Change from struct to class
+class MessageClassifierOutput: MLFeatureProvider {
     let requiresProcessing: Double
+    
+    init(requiresProcessing: Double) {
+        self.requiresProcessing = requiresProcessing
+    }
+    
+    var featureNames: Set<String> {
+        return ["requiresProcessing"]
+    }
+    
+    func featureValue(for featureName: String) -> MLFeatureValue? {
+        if featureName == "requiresProcessing" {
+            return MLFeatureValue(double: requiresProcessing)
+        }
+        return nil
+    }
 }
 
 class MessagePreprocessor {
@@ -59,11 +74,13 @@ class MessagePreprocessor {
     
     func shouldProcessMessage(_ message: String) throws -> Bool {
         let input = MessageClassifierInput(text: message)
-        guard let output = try? classifier.prediction(from: input) as? MessageClassifierOutput else {
+        let prediction = try classifier.prediction(from: input)
+        
+        // Simplify the prediction extraction
+        guard let processingFeature = prediction.featureValue(for: "requiresProcessing") else {
             throw PreprocessorError.predictionFailed
         }
         
-        // Based on the classification, determine if the message needs API processing
-        return output.requiresProcessing > 0.7 // threshold
+        return processingFeature.doubleValue > 0.7
     }
 } 

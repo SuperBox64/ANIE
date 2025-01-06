@@ -21,8 +21,28 @@ class TextEmbeddingsInput: MLFeatureProvider {
 }
 
 // Output can remain a struct
-struct TextEmbeddingsOutput {
+class TextEmbeddingsOutput: MLFeatureProvider {
     let embeddings: [Float]
+    
+    init(embeddings: [Float]) {
+        self.embeddings = embeddings
+    }
+    
+    var featureNames: Set<String> {
+        return ["embeddings"]
+    }
+    
+    func featureValue(for featureName: String) -> MLFeatureValue? {
+        if featureName == "embeddings" {
+            let shape = [NSNumber(value: embeddings.count)]
+            let array = try! MLMultiArray(shape: shape, dataType: .float32)
+            for (index, value) in embeddings.enumerated() {
+                array[index] = NSNumber(value: value)
+            }
+            return MLFeatureValue(multiArray: array)
+        }
+        return nil
+    }
 }
 
 class EmbeddingsGenerator {
@@ -54,10 +74,19 @@ class EmbeddingsGenerator {
     
     func generateEmbeddings(for text: String) throws -> [Float] {
         let input = TextEmbeddingsInput(text: text)
-        guard let output = try? model.prediction(from: input) as? TextEmbeddingsOutput else {
+        let prediction = try model.prediction(from: input)
+        
+        guard let embeddingsFeature = prediction.featureValue(for: "embeddings"),
+              let multiArray = embeddingsFeature.multiArrayValue else {
             throw EmbeddingsError.predictionFailed
         }
-        return output.embeddings
+        
+        var embeddings = [Float]()
+        for i in 0..<multiArray.count {
+            embeddings.append(Float(truncating: multiArray[i]))
+        }
+        
+        return embeddings
     }
 }
 

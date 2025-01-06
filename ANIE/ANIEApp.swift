@@ -33,7 +33,7 @@ struct ANIEApp: App {
                 .sheet(isPresented: $showingConfiguration) {
                     ConfigurationView(shouldRefresh: $shouldRefreshCredentials)
                 }
-                .onChange(of: shouldRefreshCredentials) { newValue in
+                .onChange(of: shouldRefreshCredentials) { oldValue, newValue in
                     if newValue {
                         viewModel.refreshCredentials()
                         shouldRefreshCredentials = false

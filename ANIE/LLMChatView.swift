@@ -9,6 +9,7 @@ struct LLMChatView: View {
     @State private var showingDeleteAlert = false
     @State private var showingConfiguration = false
     @State private var shouldRefreshCredentials = false
+    @State private var initialScrollDone = false
     
     var body: some View {
         HSplitView {
@@ -57,6 +58,21 @@ struct LLMChatView: View {
                         }
                         .onAppear {
                             scrollProxy = proxy
+                            // Scroll to top when view first appears
+                            if !initialScrollDone {
+                                if let firstMessage = viewModel.currentSession?.messages.first {
+                                    proxy.scrollTo(firstMessage.id, anchor: .top)
+                                    initialScrollDone = true
+                                }
+                            }
+                        }
+                        // Add this to handle session changes
+                        .onChange(of: viewModel.selectedSessionId) { oldId, newId in
+                            initialScrollDone = false
+                            if let firstMessage = viewModel.currentSession?.messages.first {
+                                proxy.scrollTo(firstMessage.id, anchor: .top)
+                                initialScrollDone = true
+                            }
                         }
                     }
                 }
@@ -153,7 +169,7 @@ struct LLMChatView: View {
         .sheet(isPresented: $showingConfiguration) {
             ConfigurationView(shouldRefresh: $shouldRefreshCredentials)
         }
-        .onChange(of: shouldRefreshCredentials) { newValue in
+        .onChange(of: shouldRefreshCredentials) { oldValue, newValue in
             if newValue {
                 viewModel.refreshCredentials()
                 shouldRefreshCredentials = false
