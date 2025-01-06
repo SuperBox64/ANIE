@@ -10,7 +10,13 @@ import AppKit
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.windows.first?.title = "ANIE: Artificial Neural Intelligence Engine"
+        // Set window title after a brief delay to ensure window is created
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            if let window = NSApp.windows.first {
+                window.title = "ANIE: Artificial Neural Intelligence Engine"
+                window.titleVisibility = .visible
+            }
+        }
     }
 }
 
