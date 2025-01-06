@@ -94,6 +94,27 @@ class LLMViewModel: ObservableObject {
         session.messages.append(userMessage)
         currentSession = session
         
+        // Handle ML status command
+        if input.lowercased() == "!ml status" {
+            let status = """
+            === ML System Status ===
+            ANE Available: \(MLDeviceCapabilities.hasANE)
+            Current Compute Units: \(MLDeviceCapabilities.getOptimalComputeUnits())
+            
+            Model Status:
+            - Embeddings Model: \(MLDeviceCapabilities.hasANE ? "Using ANE" : "Using CPU/GPU")
+            - Classifier Model: \(MLDeviceCapabilities.hasANE ? "Using ANE" : "Using CPU/GPU")
+            
+            Note: CoreML integration is configured and \(MLDeviceCapabilities.hasANE ? "ANE is available" : "ANE is not available") on this device.
+            """
+            
+            session.messages.append(Message(content: status, isUser: false))
+            currentSession = session
+            isProcessing = false
+            processingProgress = 1.0
+            return
+        }
+        
         // Simulate progress while waiting for response
         Task {
             while isProcessing {
