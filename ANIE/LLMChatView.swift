@@ -68,10 +68,10 @@ struct LLMChatView: View {
                         }
                         // Add this to handle session changes
                         .onChange(of: viewModel.selectedSessionId) { oldId, newId in
-                            initialScrollDone = false
-                            if let firstMessage = viewModel.currentSession?.messages.first {
-                                proxy.scrollTo(firstMessage.id, anchor: .top)
-                                initialScrollDone = true
+                            if let lastMessage = viewModel.currentSession?.messages.last {
+                                withAnimation {
+                                    proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                                }
                             }
                         }
                     }
