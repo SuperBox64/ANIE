@@ -1,6 +1,8 @@
 import Foundation
-//import CoreML
+import CoreML
+import SwiftUI
 
+// MARK: - View Model
 @MainActor
 class LLMViewModel: ObservableObject {
     @Published var sessions: [ChatSession] = []
@@ -11,6 +13,7 @@ class LLMViewModel: ObservableObject {
     private let modelHandler = LLMModelHandler()
     private let sessionsKey = "chatSessions"
     private let credentialsManager = CredentialsManager()
+    private var chatManager: ChatManager?
     
     var currentSession: ChatSession? {
         get {
@@ -39,6 +42,20 @@ class LLMViewModel: ObservableObject {
         // Create default session if none exist
         if sessions.isEmpty {
             addSession(subject: "New Chat")
+        }
+        
+        // Initialize ML components
+        do {
+            let preprocessor = try CustomMessagePreprocessor()
+            let embeddingsGenerator = try EmbeddingsGenerator()
+            let cache = ResponseCache(embeddingsGenerator: embeddingsGenerator)
+            chatManager = ChatManager(
+                preprocessor: preprocessor,
+                cache: cache,
+                apiClient: modelHandler
+            )
+        } catch {
+            print("Failed to initialize ML components: \(error)")
         }
     }
     
@@ -94,27 +111,6 @@ class LLMViewModel: ObservableObject {
         session.messages.append(userMessage)
         currentSession = session
         
-        // Handle ML status command
-        if input.lowercased() == "!ml status" {
-            let status = """
-            === ML System Status ===
-            ANE Available: \(MLDeviceCapabilities.hasANE)
-            Current Compute Units: \(MLDeviceCapabilities.getOptimalComputeUnits())
-            
-            Model Status:
-            - Embeddings Model: \(MLDeviceCapabilities.hasANE ? "Using ANE" : "Using CPU/GPU")
-            - Classifier Model: \(MLDeviceCapabilities.hasANE ? "Using ANE" : "Using CPU/GPU")
-            
-            Note: CoreML integration is configured and \(MLDeviceCapabilities.hasANE ? "ANE is available" : "ANE is not available") on this device.
-            """
-            
-            session.messages.append(Message(content: status, isUser: false))
-            currentSession = session
-            isProcessing = false
-            processingProgress = 1.0
-            return
-        }
-        
         // Simulate progress while waiting for response
         Task {
             while isProcessing {
@@ -126,7 +122,13 @@ class LLMViewModel: ObservableObject {
         }
         
         do {
-            let response = try await modelHandler.generateResponse(for: input)
+            let response: String
+            if let manager = chatManager {
+                response = try await manager.processMessage(input)
+            } else {
+                response = try await modelHandler.generateResponse(for: input)
+            }
+            
             session.messages.append(Message(content: response, isUser: false))
             currentSession = session
         } catch ChatError.serverError(let code, let message) {

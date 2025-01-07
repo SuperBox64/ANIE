@@ -1,21 +1,18 @@
 import Foundation
+import CoreML
+import SwiftUI
 
-enum ChatError: Error {
-    case invalidURL
-    case networkError(Error)
-    case serverError(Int, String)
-    case decodingError(Error)
-}
-
-class LLMModelHandler {
+// MARK: - Model Handler
+public class LLMModelHandler: ChatGPTClient {
     private let session = URLSession.shared
     private var apiKey: String
     private var baseURL: String
     private var conversationHistory: [ChatMessage] = []
+    private let credentialsManager = CredentialsManager()
     
-    init() {
-        self.apiKey = OpenAIConfig.apiKey
-        self.baseURL = OpenAIConfig.baseURL
+    public init() {
+        self.apiKey = credentialsManager.getCredentials()?.apiKey ?? ""
+        self.baseURL = credentialsManager.getCredentials()?.baseURL ?? "https://api.openai.com/v1"
         
         // Add system prompt to set AI personality
         let systemPrompt = ChatMessage(
@@ -25,12 +22,12 @@ class LLMModelHandler {
         conversationHistory.append(systemPrompt)
     }
     
-    func updateCredentials(apiKey: String, baseURL: String) {
+    public func updateCredentials(apiKey: String, baseURL: String) {
         self.apiKey = apiKey
         self.baseURL = baseURL
     }
     
-    func generateResponse(for input: String) async throws -> String {
+    public func generateResponse(for input: String) async throws -> String {
         let url = URL(string: "\(baseURL)/chat/completions")!
         
         // Add user's message to history
@@ -85,35 +82,16 @@ class LLMModelHandler {
         }
     }
     
-    func clearHistory() {
+    public func clearHistory() {
         conversationHistory.removeAll()
     }
     
-    func restoreConversation(from messages: [Message]) {
+    public func restoreConversation(from messages: [Message]) {
         conversationHistory = messages.map { message in
             ChatMessage(
                 content: message.content,
                 role: message.isUser ? "user" : "assistant"
             )
         }
-    }
-}
-
-// Response models remain unchanged
-struct ChatResponse: Codable {
-    let choices: [ChatChoice]
-}
-
-struct ChatChoice: Codable {
-    let message: ChatMessage
-}
-
-struct ChatMessage: Codable {
-    let content: String
-    let role: String
-    
-    init(content: String, role: String) {
-        self.content = content
-        self.role = role
     }
 } 
