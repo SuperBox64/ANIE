@@ -1,5 +1,5 @@
 import Foundation
-import CoreML
+//import CoreML
 
 protocol ChatGPTClient {
     func generateResponse(for message: String) async throws -> String
