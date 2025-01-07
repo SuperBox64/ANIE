@@ -6,13 +6,15 @@ struct Message: Identifiable, Codable, Equatable {
     let isUser: Bool
     let timestamp: Date
     let usedBERT: Bool
+    let usedLocalAI: Bool
     
-    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date(), usedBERT: Bool = false) {
+    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date(), usedBERT: Bool = false, usedLocalAI: Bool = false) {
         self.id = id
         self.content = content
         self.isUser = isUser
         self.timestamp = timestamp
         self.usedBERT = usedBERT
+        self.usedLocalAI = usedLocalAI
     }
     
     // Coding keys
@@ -22,6 +24,7 @@ struct Message: Identifiable, Codable, Equatable {
         case isUser
         case timestamp
         case usedBERT
+        case usedLocalAI
     }
     
     // Implement custom decoding
@@ -31,8 +34,8 @@ struct Message: Identifiable, Codable, Equatable {
         content = try container.decode(String.self, forKey: .content)
         isUser = try container.decode(Bool.self, forKey: .isUser)
         timestamp = try container.decode(Date.self, forKey: .timestamp)
-        // Provide default value for usedBERT if it doesn't exist in older saved data
         usedBERT = try container.decodeIfPresent(Bool.self, forKey: .usedBERT) ?? false
+        usedLocalAI = try container.decodeIfPresent(Bool.self, forKey: .usedLocalAI) ?? false
     }
     
     // Implement custom encoding
@@ -43,6 +46,7 @@ struct Message: Identifiable, Codable, Equatable {
         try container.encode(isUser, forKey: .isUser)
         try container.encode(timestamp, forKey: .timestamp)
         try container.encode(usedBERT, forKey: .usedBERT)
+        try container.encode(usedLocalAI, forKey: .usedLocalAI)
     }
     
     // Equatable conformance
@@ -51,6 +55,7 @@ struct Message: Identifiable, Codable, Equatable {
         lhs.content == rhs.content &&
         lhs.isUser == rhs.isUser &&
         lhs.timestamp == rhs.timestamp &&
-        lhs.usedBERT == rhs.usedBERT
+        lhs.usedBERT == rhs.usedBERT &&
+        lhs.usedLocalAI == rhs.usedLocalAI
     }
 } 

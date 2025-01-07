@@ -33,14 +33,21 @@ class ChatManager {
         let useLocalAI = UserDefaults.standard.bool(forKey: "useLocalAI")
         
         // Check if we should use local processing
-        if useLocalAI && preprocessor.isMLRelatedQuery(message) {
-            print("📝 Using Local AI for query: \(message)")
-            let response = try await localAI.generateResponse(for: message)
-            return response
+        if useLocalAI {
+            print("🧠 Using LocalAI for query: \(message)")
+            if preprocessor.isMLRelatedQuery(message) {
+                let response = try await localAI.generateResponse(for: message)
+                print("🧠 LocalAI generated response")
+                return response + "\n[Using LocalAI]"
+            } else {
+                print("⚠️ Local AI enabled - skipping cache")
+                let response = try await apiClient.generateResponse(for: message)
+                return response + "\n[Using LocalAI]"  // Add LocalAI tag even for regular responses
+            }
         }
         
-        // Regular processing flow - skip cache if Local AI is enabled
-        if !useLocalAI && preprocessor.shouldCache(message) {
+        // Regular processing flow when LocalAI is disabled
+        if preprocessor.shouldCache(message) {
             print("🔍 Checking cache for: \(message)")
             if let cachedResponse = try cache.findSimilarResponse(for: message) {
                 print("✨ Cache hit! Using cached response")
@@ -54,12 +61,6 @@ class ChatManager {
             try cache.cacheResponse(query: message, response: response)
             print("📥 Cached new response")
             return response
-        } else {
-            if useLocalAI {
-                print("⚠️ Local AI enabled - skipping cache")
-            } else {
-                print("⚠️ Message not eligible for caching")
-            }
         }
         
         let response = try await apiClient.generateResponse(for: message)
@@ -67,8 +68,16 @@ class ChatManager {
     }
     
     private func handleMLCommand(_ command: String) -> String {
-        // Trim any whitespace and make lowercase for consistent comparison
-        let cleanCommand = command.trimmingCharacters(in: .whitespaces).lowercased()
+        // Clean up command by:
+        // 1. Trimming whitespace and newlines
+        // 2. Converting to lowercase
+        // 3. Removing extra spaces
+        let cleanCommand = command
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
         
         switch cleanCommand {
         case "!ml", "!ml help":  // Handle both !ml and !ml help the same way

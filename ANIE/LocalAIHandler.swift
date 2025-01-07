@@ -86,7 +86,7 @@ class LocalAIHandler {
         
         // Run a quick embedding generation test
         if let generator = embeddingGenerator {
-            _ = try await generator.generateEmbeddings(for: "test")
+            _ = try generator.generateEmbeddings(for: "test")
         }
         
         let duration = CFAbsoluteTimeGetCurrent() - start

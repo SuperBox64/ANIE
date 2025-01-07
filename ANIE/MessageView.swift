@@ -15,12 +15,16 @@ struct MessageView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.top, 3)
-                        .padding(.bottom, 4)
+                        .padding(.bottom, 1)
                     
-                    if message.usedBERT {
+                    if message.usedLocalAI {
+                        Text("🧠")
+                            .font(.system(size: 14))
+                            .padding(.bottom, 2)
+                    } else if message.usedBERT {
                         Text("🤖")
-                            .font(.system(size: 16))
-                            .scaleEffect(1.2)
+                            .font(.system(size: 14))
+                            .padding(.bottom, 2)
                     }
                 }
                 .frame(width: 40, alignment: .trailing)

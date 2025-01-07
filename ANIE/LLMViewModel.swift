@@ -116,12 +116,16 @@ class LLMViewModel: ObservableObject {
             // Process through ChatManager to handle ML commands
             let response = try await chatManager.processMessage(input)
             let usedBERT = response.contains("[Retrieved using BERT]")
-            let cleanResponse = response.replacingOccurrences(of: "\n[Retrieved using BERT]", with: "")
+            let usedLocalAI = response.contains("[Using LocalAI]")
+            let cleanResponse = response
+                .replacingOccurrences(of: "\n[Retrieved using BERT]", with: "")
+                .replacingOccurrences(of: "\n[Using LocalAI]", with: "")
             
             let responseMessage = Message(
                 content: cleanResponse,
                 isUser: false,
-                usedBERT: usedBERT
+                usedBERT: usedBERT,
+                usedLocalAI: usedLocalAI
             )
             
             await MainActor.run {
