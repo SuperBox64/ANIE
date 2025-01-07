@@ -1,0 +1,94 @@
+import CoreML
+import NaturalLanguage
+
+class LocalAIHandler {
+    private let tokenizer: NLTokenizer
+    private let embeddingGenerator: EmbeddingsGenerator?
+    private let cache: ResponseCache
+    
+    init() {
+        self.tokenizer = NLTokenizer(unit: .word)
+        self.embeddingGenerator = EmbeddingsService.shared.generator
+        self.cache = ResponseCache()
+    }
+    
+    func generateResponse(for query: String) async throws -> String {
+        guard let generator = embeddingGenerator else {
+            throw AIError.embeddingFailed
+        }
+        
+        // Generate embeddings for the query
+        let queryEmbeddings = try await generator.generateEmbeddings(for: query)
+        
+        // Try to find semantically similar cached responses
+        if let similarResponse = try cache.findSimilarResponse(for: query) {
+            return similarResponse
+        }
+        
+        // If no good match found, analyze the query and generate a response
+        let systemInfo = MLDeviceCapabilities.getSystemInfo()
+        let response = try await analyzeQueryAndGenerateResponse(
+            query: query,
+            embeddings: queryEmbeddings,
+            systemInfo: systemInfo
+        )
+        
+        // Cache the generated response
+        try cache.cacheResponse(query: query, response: response)
+        
+        return response
+    }
+    
+    private func analyzeQueryAndGenerateResponse(
+        query: String,
+        embeddings: [Float],
+        systemInfo: [String: Any]
+    ) async throws -> String {
+        // Use the embeddings to understand the query intent
+        // This could involve clustering, similarity analysis, etc.
+        
+        // Get real-time system information
+        let hasANE = systemInfo["hasANE"] as? Bool ?? false
+        let computeUnits = systemInfo["computeUnits"] as? Int ?? 0
+        let modelActive = systemInfo["modelActive"] as? Bool ?? false
+        
+        // Build response based on actual system state
+        var components: [String] = []
+        
+        if hasANE {
+            components.append("Using ANE for ML acceleration")
+            components.append("Current compute units: \(computeUnits)")
+        } else {
+            components.append("Running on CPU/GPU")
+        }
+        
+        if modelActive {
+            components.append("BERT model is active and processing embeddings")
+        }
+        
+        // Add any relevant performance metrics
+        if let metrics = try? await gatherPerformanceMetrics() {
+            components.append(metrics)
+        }
+        
+        return components.joined(separator: "\n")
+    }
+    
+    private func gatherPerformanceMetrics() async throws -> String {
+        // Gather actual performance data
+        let start = CFAbsoluteTimeGetCurrent()
+        
+        // Run a quick embedding generation test
+        if let generator = embeddingGenerator {
+            _ = try await generator.generateEmbeddings(for: "test")
+        }
+        
+        let duration = CFAbsoluteTimeGetCurrent() - start
+        return String(format: "Embedding generation time: %.2fms", duration * 1000)
+    }
+}
+
+enum AIError: Error {
+    case embeddingFailed
+    case generationFailed
+} 

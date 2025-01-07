@@ -10,11 +10,13 @@ class ChatManager {
     private let preprocessor: MessagePreprocessor
     private let cache: ResponseCache
     private let apiClient: ChatGPTClient
+    private let localAI: LocalAIHandler
     
     init(preprocessor: MessagePreprocessor, cache: ResponseCache, apiClient: ChatGPTClient) {
         self.preprocessor = preprocessor
         self.cache = cache
         self.apiClient = apiClient
+        self.localAI = LocalAIHandler()
         
         // Print debug info on initialization
         print("=== ML System Configuration ===")
@@ -23,8 +25,36 @@ class ChatManager {
     }
     
     func processMessage(_ message: String) async throws -> String {
-        // Add help command
-        if message.lowercased() == "!ml help" {
+        // Handle ML commands first
+        if message.lowercased().hasPrefix("!ml") {
+            return handleMLCommand(message.lowercased())
+        }
+        
+        // Check if we should use local processing
+        if UserDefaults.standard.bool(forKey: "useLocalAI") && 
+           preprocessor.isMLRelatedQuery(message) {
+            let response = try await localAI.generateResponse(for: message)
+            return "🧠 " + response  // Add brain emoji for local AI responses
+        }
+        
+        // Regular processing flow
+        if preprocessor.shouldCache(message) {
+            if let cachedResponse = try cache.findSimilarResponse(for: message) {
+                let response = cachedResponse + "\n[Retrieved using BERT]"
+                return "🤖 " + response
+            }
+        }
+        
+        let response = try await apiClient.generateResponse(for: message)
+        return "🤖 " + response
+    }
+    
+    private func handleMLCommand(_ command: String) -> String {
+        // Trim any whitespace and make lowercase for consistent comparison
+        let cleanCommand = command.trimmingCharacters(in: .whitespaces).lowercased()
+        
+        switch cleanCommand {
+        case "!ml", "!ml help":  // Handle both !ml and !ml help the same way
             return """
             🤖 ANIE ML Commands:
             
@@ -43,9 +73,8 @@ class ChatManager {
             Note: BERT caching is automatically disabled for programming questions.
             Current similarity threshold: \(String(format: "%.2f", cache.threshold))
             """
-        }
-        
-        if message.lowercased() == "!ml clear" {
+            
+        case "!ml clear":
             // Clear BERT cache
             cache.clearCache()
             // Clear conversation history
@@ -59,11 +88,9 @@ class ChatManager {
             • Conversation history
             • Persisted data
             """
-        }
-        // Add command to check ML status
-        if message.lowercased() == "!ml status" {
-            _ = EmbeddingsService.shared.getStats()
-            let mlStats = """
+            
+        case "!ml status":
+            return """
             === ML System Status ===
             
             🧠 CoreML Status:
@@ -82,31 +109,10 @@ class ChatManager {
             
             ========================
             """
-            return mlStats
+            
+        default:
+            return "Unknown ML command. Use !ml help to see available commands."
         }
-        
-        // First check if we need to process this message
-        _ = try preprocessor.shouldProcessMessage(message)
-        
-        // Only check cache for non-programming questions
-        if preprocessor.shouldCache(message) {
-            if let cachedResponse = try cache.findSimilarResponse(for: message) {
-                print("🤖 Using BERT cache for response")
-                return cachedResponse + "\n[Retrieved using BERT]"
-            }
-        } else {
-            print("💭 Skipping cache for programming question")
-        }
-        
-        print("💭 No cache hit, using ChatGPT")
-        let response = try await apiClient.generateResponse(for: message)
-        
-        // Only cache non-programming responses
-        if preprocessor.shouldCache(message) {
-            try cache.cacheResponse(query: message, response: response)
-        }
-        
-        return response
     }
     
     // Add a method to test ML performance
@@ -134,5 +140,17 @@ class ChatManager {
             }
         }
         print("========================")
+    }
+}
+
+// Add to MLDeviceCapabilities
+extension MLDeviceCapabilities {
+    static func getSystemInfo() -> [String: Any] {
+        return [
+            "hasANE": hasANE,
+            "computeUnits": getOptimalComputeUnits(),
+            "modelActive": EmbeddingsService.shared.generator != nil,
+            "usageCount": EmbeddingsService.shared.usageCount
+        ]
     }
 } 

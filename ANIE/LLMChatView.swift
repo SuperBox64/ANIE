@@ -11,13 +11,14 @@ struct LLMChatView: View {
     @State private var showingConfiguration = false
     @State private var shouldRefreshCredentials = false
     @State private var initialScrollDone = false
+    @AppStorage("useLocalAI") private var useLocalAI = false
     
     var body: some View {
         HSplitView {
             ChatSidebarView(viewModel: viewModel)
             
             VStack(spacing: 0) {
-                // Add settings button to top-right
+                // Top toolbar
                 HStack {
                     Spacer()
                     Button {
@@ -94,15 +95,6 @@ struct LLMChatView: View {
                     }
                 }
                 
-                // Progress bar
-                if viewModel.isProcessing {
-                    ProgressView(value: viewModel.processingProgress, total: 1.0)
-                        .progressViewStyle(.linear)
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                        .transition(.opacity)
-                }
-                
                 // Bottom input area
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
@@ -110,6 +102,11 @@ struct LLMChatView: View {
                             .foregroundColor(.blue)
                             .font(.system(size: 12))
                             .padding(.leading, 22)
+                        
+                        Toggle("Local ML", isOn: $useLocalAI)
+                            .toggleStyle(.switch)
+                            .help("Use local ML for AI/ML related queries")
+                            .scaleEffect(0.8)
                         
                         if viewModel.isProcessing {
                             Spacer()

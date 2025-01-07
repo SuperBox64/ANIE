@@ -8,6 +8,7 @@ struct ConfigurationView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @Binding var shouldRefresh: Bool
+    @AppStorage("useLocalAI") private var useLocalAI = false
     
     private var redactedApiKey: String {
         if credentialsManager.isConfigured {
@@ -59,6 +60,16 @@ struct ConfigurationView: View {
                     TextField("Base URL", text: $baseURL)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 400)
+                }
+                
+                Divider()
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("ML Configuration")
+                        .font(.headline)
+                    
+                    Toggle("Use Local ML Processing", isOn: $useLocalAI)
+                        .help("When enabled, uses local ML models for AI/ML related queries")
                 }
                 
                 HStack(spacing: 20) {

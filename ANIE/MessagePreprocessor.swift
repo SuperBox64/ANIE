@@ -55,4 +55,9 @@ class MessagePreprocessor {
         
         return true
     }
+    
+    func isMLRelatedQuery(_ message: String) -> Bool {
+        let lowercased = message.lowercased()
+        return mlKeywords.contains(where: { lowercased.contains($0) })
+    }
 } 
