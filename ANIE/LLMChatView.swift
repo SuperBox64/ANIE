@@ -57,50 +57,38 @@ struct LLMChatView: View {
                         }
                         .padding(.horizontal, 18)
                         .padding(.vertical, 8)
-                        .onChange(of: viewModel.currentSession?.messages.count) { oldCount, newCount in
-                            if let lastMessage = viewModel.currentSession?.messages.last {
-                                withAnimation {
-                                    proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                                }
-                            }
-                        }
                         .onAppear {
                             scrollProxy = proxy
-                            // Scroll to top when view first appears
-                            if !initialScrollDone {
-                                if let firstMessage = viewModel.currentSession?.messages.first {
-                                    proxy.scrollTo(firstMessage.id, anchor: .top)
-                                    initialScrollDone = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                withAnimation {
+                                    proxy.scrollTo("bottom", anchor: .bottom)
                                 }
                             }
                         }
-                        // Add this to handle session changes
                         .onChange(of: viewModel.selectedSessionId) { oldId, newId in
-                            if let lastMessage = viewModel.currentSession?.messages.last {
-                                withAnimation {
-                                    proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                            Task { @MainActor in
+                                if let lastMessage = viewModel.currentSession?.messages.last {
+                                    await MainActor.run {
+                                        withAnimation {
+                                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                                        }
+                                    }
                                 }
                             }
                         }
                         
-                        // Add an empty view at the bottom for scrolling
                         Color.clear
                             .frame(height: 1)
                             .id("bottom")
                     }
                     .onChange(of: scrollManager.shouldScrollToBottom) { oldValue, newValue in
                         if newValue {
-                            withAnimation {
-                                proxy.scrollTo("bottom", anchor: .bottom)
-                            }
-                        }
-                    }
-                    .onAppear {
-                        scrollProxy = proxy
-                        // Initial scroll to bottom
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            withAnimation {
-                                proxy.scrollTo("bottom", anchor: .bottom)
+                            Task { @MainActor in
+                                await MainActor.run {
+                                    withAnimation {
+                                        proxy.scrollTo("bottom", anchor: .bottom)
+                                    }
+                                }
                             }
                         }
                     }
@@ -224,9 +212,11 @@ struct LLMChatView: View {
     
     private func sendMessage() {
         guard !userInput.isEmpty && !viewModel.isProcessing else { return }
+        let messageToSend = userInput
+        userInput = ""  // Clear input immediately
+        
         Task {
-            await viewModel.processUserInput(userInput)
-            userInput = ""
+            await viewModel.processUserInput(messageToSend)
         }
     }
 } 

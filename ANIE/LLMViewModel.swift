@@ -96,19 +96,24 @@ class LLMViewModel: ObservableObject {
         }
     }
     
+    private func addMessage(_ message: Message) {
+        guard let index = sessions.firstIndex(where: { $0.id == selectedSessionId }) else { return }
+        sessions[index].messages.append(message)
+        saveSessions()
+        ScrollManager.shared.scrollToBottom()
+    }
+    
     func processUserInput(_ input: String) async {
         guard currentSession != nil else { return }
-        isProcessing = true
-        processingProgress = 0
         
-        let userMessage = Message(content: input, isUser: true)
-        await MainActor.run {
-            if let index = sessions.firstIndex(where: { $0.id == selectedSessionId }) {
-                sessions[index].messages.append(userMessage)
-            }
-        }
+        isProcessing = true
+        processingProgress = 0.0
+        
+        let message = Message(content: input, isUser: true)
+        addMessage(message)
         
         do {
+            // Process through ChatManager to handle ML commands
             let response = try await chatManager.processMessage(input)
             let usedBERT = response.contains("[Retrieved using BERT]")
             let cleanResponse = response.replacingOccurrences(of: "\n[Retrieved using BERT]", with: "")
@@ -120,29 +125,16 @@ class LLMViewModel: ObservableObject {
             )
             
             await MainActor.run {
-                if let index = sessions.firstIndex(where: { $0.id == selectedSessionId }) {
-                    sessions[index].messages.append(responseMessage)
-                    saveSessions()
-                    ScrollManager.shared.scrollToBottom()
-                }
+                addMessage(responseMessage)
+                isProcessing = false
+                processingProgress = 1.0
             }
         } catch {
-            let errorMessage = Message(
-                content: "Error: \(error.localizedDescription)",
-                isUser: false,
-                usedBERT: false
-            )
+            print("Error processing message: \(error)")
             await MainActor.run {
-                if let index = sessions.firstIndex(where: { $0.id == selectedSessionId }) {
-                    sessions[index].messages.append(errorMessage)
-                    saveSessions()
-                }
+                isProcessing = false
+                processingProgress = 1.0
             }
-        }
-        
-        await MainActor.run {
-            isProcessing = false
-            processingProgress = 1.0
         }
     }
     

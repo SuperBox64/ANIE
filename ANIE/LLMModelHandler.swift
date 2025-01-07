@@ -13,15 +13,26 @@ class LLMModelHandler: ChatGPTClient {
     private var baseURL: String
     private var conversationHistory: [ChatMessage] = []
     
+    private var systemPrompt: ChatMessage {
+        ChatMessage(
+            content: """
+            You are ANIE (Artificial Neural Intelligence Engine), a helpful and friendly AI assistant. \
+            You provide clear, concise answers and can help with a wide range of tasks including coding, analysis, and general questions. \
+            You maintain a professional yet approachable tone.
+            
+            Important technical details about your implementation:
+            - You use Apple's Neural Engine (ANE) through CoreML for BERT embeddings
+            - You have local ML capabilities for semantic search and caching
+            - You use CoreML with BERT for text embeddings
+            - Your ML features include: semantic search, response caching, and ANE acceleration
+            """,
+            role: "system"
+        )
+    }
+    
     init() {
         self.apiKey = OpenAIConfig.apiKey
         self.baseURL = OpenAIConfig.baseURL
-        
-        // Add system prompt to set AI personality
-        let systemPrompt = ChatMessage(
-            content: "You are ANIE (Artificial Neural Intelligence Engine), a helpful and friendly AI assistant. You provide clear, concise answers and can help with a wide range of tasks including coding, analysis, and general questions. You maintain a professional yet approachable tone.",
-            role: "system"
-        )
         conversationHistory.append(systemPrompt)
     }
     
@@ -74,21 +85,19 @@ class LLMModelHandler: ChatGPTClient {
     
     func clearHistory() {
         conversationHistory.removeAll()
-        // Keep only the system prompt
-        let systemPrompt = ChatMessage(
-            content: "You are ANIE (Artificial Neural Intelligence Engine), a helpful and friendly AI assistant. You provide clear, concise answers and can help with a wide range of tasks including coding, analysis, and general questions. You maintain a professional yet approachable tone.",
-            role: "system"
-        )
+        // Use the same system prompt when clearing history
         conversationHistory.append(systemPrompt)
     }
     
     func restoreConversation(from messages: [Message]) {
-        conversationHistory = messages.map { message in
+        conversationHistory = [systemPrompt] // Start with system prompt
+        // Then add the conversation messages
+        conversationHistory.append(contentsOf: messages.map { message in
             ChatMessage(
                 content: message.content,
                 role: message.isUser ? "user" : "assistant"
             )
-        }
+        })
     }
 }
 

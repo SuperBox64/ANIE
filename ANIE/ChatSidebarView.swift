@@ -95,7 +95,7 @@ struct ChatSidebarView: View {
             // Header with add/remove buttons
             HStack {
                 Button(action: {
-                    viewModel.addSession(subject: "New Chat")
+                    showingNewSessionAlert = true
                 }) {
                     Image(systemName: "square.and.pencil")
                         .font(.system(size: 16))
@@ -119,7 +119,7 @@ struct ChatSidebarView: View {
                         sessionToDelete = selected
                     }
                 }) {
-                    Image(systemName: "minus")
+                    Image(systemName: "trash")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.primary)
                         .frame(width: 24, height: 24)
@@ -133,7 +133,7 @@ struct ChatSidebarView: View {
                 .frame(width: 32, height: 32)
                 .disabled(viewModel.selectedSessionId == nil)
                 .onHover { hovering in
-                    if hovering && viewModel.selectedSessionId != nil {  // Only show pointer if button is enabled
+                    if hovering && viewModel.selectedSessionId != nil {
                         NSCursor.pointingHand.push()
                     } else {
                         NSCursor.pop()
