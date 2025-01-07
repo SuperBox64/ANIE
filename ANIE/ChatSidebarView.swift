@@ -97,20 +97,19 @@ struct ChatSidebarView: View {
                 Button(action: {
                     showingNewSessionAlert = true
                 }) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 16))
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.primary)
-                        .frame(width: 30, height: 30)
+                        .frame(width: 24, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(.controlBackgroundColor))
+                                .frame(width: 24, height: 24)
+                        )
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(PlainButtonStyle())
-                .onHover { hovering in
-                    if hovering {
-                        NSCursor.pointingHand.push()
-                    } else {
-                        NSCursor.pop()
-                    }
-                }
+                .buttonStyle(.plain)
+                .frame(width: 32, height: 32)
                 
                 Spacer()
                 
@@ -126,19 +125,12 @@ struct ChatSidebarView: View {
                         .background(
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(Color(.controlBackgroundColor))
+                                .frame(width: 24, height: 24)
                         )
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .frame(width: 32, height: 32)
-                .disabled(viewModel.selectedSessionId == nil)
-                .onHover { hovering in
-                    if hovering && viewModel.selectedSessionId != nil {
-                        NSCursor.pointingHand.push()
-                    } else {
-                        NSCursor.pop()
-                    }
-                }
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
@@ -146,27 +138,20 @@ struct ChatSidebarView: View {
             // Sessions list
             List(viewModel.sessions, selection: $viewModel.selectedSessionId) { session in
                 Button {
-                    viewModel.selectSession(id: session.id)
-                } label: {
-                    HStack {
-                        Text(session.subject)
-                            .lineLimit(1)
-                        Spacer()
+                    if viewModel.selectedSessionId != session.id {
+                        viewModel.selectSession(id: session.id)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(session.id == viewModel.selectedSessionId ? 
-                        Color.blue.opacity(0.2) : Color.clear)
-                    .cornerRadius(4)
+                } label: {
+                    Text(session.subject)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .onHover { hovering in
-                    if hovering {
-                        NSCursor.pointingHand.push()
-                    } else {
-                        NSCursor.pop()
-                    }
-                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
+                .listRowSeparator(.hidden)
             }
         }
         .frame(width: 200)

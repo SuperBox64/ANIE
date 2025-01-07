@@ -37,13 +37,6 @@ struct LLMChatView: View {
                     }
                     .buttonStyle(.plain)
                     .padding([.top, .trailing], 8)
-                    .onHover { hovering in
-                        if hovering {
-                            NSCursor.pointingHand.push()
-                        } else {
-                            NSCursor.pop()
-                        }
-                    }
                 }
                 
                 // Messages ScrollView
@@ -148,13 +141,6 @@ struct LLMChatView: View {
                             .buttonStyle(PlainButtonStyle())
                             .keyboardShortcut(.delete, modifiers: .command)
                             .disabled(viewModel.currentSession?.messages.isEmpty ?? true)
-                            .onHover { hovering in
-                                if hovering {
-                                    NSCursor.pointingHand.push()
-                                } else {
-                                    NSCursor.pop()
-                                }
-                            }
                             
                             Button(action: sendMessage) {
                                 Image(systemName: "arrow.up.circle.fill")
@@ -167,13 +153,6 @@ struct LLMChatView: View {
                             .buttonStyle(PlainButtonStyle())
                             .keyboardShortcut(.return, modifiers: .command)
                             .disabled(userInput.isEmpty || viewModel.isProcessing)
-                            .onHover { hovering in
-                                if hovering && !userInput.isEmpty && !viewModel.isProcessing {
-                                    NSCursor.pointingHand.push()
-                                } else {
-                                    NSCursor.pop()
-                                }
-                            }
                         }
                         .padding(.trailing, 30)
                         .offset(y: -1)

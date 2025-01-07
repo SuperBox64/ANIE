@@ -89,6 +89,9 @@ class LLMViewModel: ObservableObject {
     }
     
     func selectSession(id: UUID) {
+        // Only update if it's a different session
+        guard selectedSessionId != id else { return }
+        
         selectedSessionId = id
         if let session = currentSession {
             modelHandler.restoreConversation(from: session.messages)

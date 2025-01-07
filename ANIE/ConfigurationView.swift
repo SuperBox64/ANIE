@@ -64,13 +64,13 @@ struct ConfigurationView: View {
                 
                 Divider()
                 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("ML Configuration")
-                        .font(.headline)
+                // VStack(alignment: .leading, spacing: 8) {
+                //     Text("ML Configuration")
+                //         .font(.headline)
                     
-                    Toggle("Use Local ML Processing", isOn: $useLocalAI)
-                        .help("When enabled, uses local ML models for AI/ML related queries")
-                }
+                //     Toggle("Use Local ML Processing", isOn: $useLocalAI)
+                //         .help("When enabled, uses local ML models for AI/ML related queries")
+                // }
                 
                 HStack(spacing: 20) {
                     Button("Cancel") {
