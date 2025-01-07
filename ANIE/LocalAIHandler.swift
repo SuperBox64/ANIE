@@ -13,19 +13,24 @@ class LocalAIHandler {
     }
     
     func generateResponse(for query: String) async throws -> String {
+        print("🧠 LocalAI processing query...")
+        
         guard let generator = embeddingGenerator else {
+            print("❌ LocalAI: No embedding generator available")
             throw AIError.embeddingFailed
         }
         
         // Generate embeddings for the query
-        let queryEmbeddings = try await generator.generateEmbeddings(for: query)
+        print("🧠 LocalAI: Generating embeddings...")
+        let queryEmbeddings = try generator.generateEmbeddings(for: query)
         
         // Try to find semantically similar cached responses
         if let similarResponse = try cache.findSimilarResponse(for: query) {
+            print("🧠 LocalAI: Found cached response")
             return similarResponse
         }
         
-        // If no good match found, analyze the query and generate a response
+        print("🧠 LocalAI: Generating new response...")
         let systemInfo = MLDeviceCapabilities.getSystemInfo()
         let response = try await analyzeQueryAndGenerateResponse(
             query: query,
@@ -35,6 +40,7 @@ class LocalAIHandler {
         
         // Cache the generated response
         try cache.cacheResponse(query: query, response: response)
+        print("🧠 LocalAI: Response generated and cached")
         
         return response
     }

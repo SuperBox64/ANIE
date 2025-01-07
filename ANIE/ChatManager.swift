@@ -33,20 +33,21 @@ class ChatManager {
         // Check if we should use local processing
         if UserDefaults.standard.bool(forKey: "useLocalAI") && 
            preprocessor.isMLRelatedQuery(message) {
+            print("📝 Using Local AI for query: \(message)")
             let response = try await localAI.generateResponse(for: message)
-            return "🧠 " + response  // Add brain emoji for local AI responses
+            return response  // No emoji prefix
         }
         
         // Regular processing flow
         if preprocessor.shouldCache(message) {
             if let cachedResponse = try cache.findSimilarResponse(for: message) {
                 let response = cachedResponse + "\n[Retrieved using BERT]"
-                return "🤖 " + response
+                return response  // No emoji prefix
             }
         }
         
         let response = try await apiClient.generateResponse(for: message)
-        return "🤖 " + response
+        return response  // No emoji prefix
     }
     
     private func handleMLCommand(_ command: String) -> String {

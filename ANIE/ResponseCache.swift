@@ -10,7 +10,7 @@ struct CachedResponse: Codable {
 class ResponseCache {
     private var cache: [CachedResponse] = []
     private let embeddings: EmbeddingsGenerator?
-    private let similarityThreshold: Float = 0.95
+    private let similarityThreshold: Float = 0.8
     private let cacheKey = "bert_response_cache"
     private let maxLengthDifference = 0.2
     
