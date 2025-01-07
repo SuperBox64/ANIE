@@ -1,42 +1,10 @@
 import Foundation
 import CoreML
-import SwiftUI
 
-// MARK: - ML Device Capabilities
-public struct MLDeviceCapabilities {
-    public static var hasANE: Bool {
-        if #available(iOS 14.0, macOS 11.0, *) {
-            let supportedUnits = MLComputeUnits.all
-            return supportedUnits.rawValue & MLComputeUnits.cpuAndNeuralEngine.rawValue != 0
-        }
-        return false
-    }
-    
-    public static func getOptimalComputeUnits() -> MLComputeUnits {
-        if hasANE {
-            return .all
-        }
-        return .cpuAndGPU
-    }
-    
-    public static func debugComputeInfo() {
-        print("ANE Available: \(hasANE)")
-        print("Optimal Compute Units: \(getOptimalComputeUnits())")
-        
-        if #available(iOS 14.0, macOS 11.0, *) {
-            print("Supported Units: \(MLComputeUnits.all)")
-        }
-    }
-    
-    public static func runModelTests() -> String {
-        var result = "=== ML System Test Results ===\n"
-        result += "ANE Available: \(hasANE)\n"
-        result += "Current Compute Units: \(getOptimalComputeUnits())\n"
-        return result
-    }
+public protocol ChatGPTClient {
+    func generateResponse(for message: String) async throws -> String
 }
 
-// MARK: - Chat Manager
 public class ChatManager {
     private let preprocessor: CustomMessagePreprocessor
     private let cache: ResponseCache
@@ -96,7 +64,7 @@ public class ChatManager {
         let parts = command.lowercased().split(separator: " ")
         guard parts.count >= 1 else { return "Invalid command" }
         
-        let baseCommand = String(parts[0])
+        let baseCommand = parts[0]
         let subCommand = parts.count > 1 ? String(parts[1]) : ""
         
         switch baseCommand {
