@@ -12,6 +12,7 @@ struct LLMChatView: View {
     @State private var shouldRefreshCredentials = false
     @State private var initialScrollDone = false
     @AppStorage("useLocalAI") private var useLocalAI = false
+    @FocusState private var isTextFieldFocused: Bool
     
     var body: some View {
         HSplitView {
@@ -204,6 +205,9 @@ struct LLMChatView: View {
                 viewModel.refreshCredentials()
                 shouldRefreshCredentials = false
             }
+        }
+        .onAppear {
+            isTextFieldFocused = true
         }
     }
     

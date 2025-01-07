@@ -15,6 +15,14 @@ class LocalAIHandler {
     func generateResponse(for query: String) async throws -> String {
         print("🧠 LocalAI processing query...")
         
+        // Check for creator question
+        let lowercasedQuery = query.lowercased()
+        if lowercasedQuery.contains("who made you") || 
+           lowercasedQuery.contains("who created you") ||
+           lowercasedQuery.contains("who is your creator") {
+            return "I was created by Todd Bruss, an imaginative out of the box thinker."
+        }
+        
         guard let generator = embeddingGenerator else {
             print("❌ LocalAI: No embedding generator available")
             throw AIError.embeddingFailed
