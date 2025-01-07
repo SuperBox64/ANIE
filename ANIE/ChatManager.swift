@@ -23,6 +23,28 @@ class ChatManager {
     }
     
     func processMessage(_ message: String) async throws -> String {
+        // Add help command
+        if message.lowercased() == "!ml help" {
+            return """
+            🤖 ANIE ML Commands:
+            
+            !ml status  - Show ML system status including:
+            • CoreML/ANE status
+            • BERT model status
+            • Cache statistics
+            
+            !ml clear   - Clear all caches:
+            • BERT response cache
+            • Conversation history
+            • Persisted data
+            
+            !ml help    - Show this help message
+            
+            Note: BERT caching is automatically disabled for programming questions.
+            Current similarity threshold: \(String(format: "%.2f", cache.threshold))
+            """
+        }
+        
         if message.lowercased() == "!ml clear" {
             // Clear BERT cache
             cache.clearCache()
@@ -40,7 +62,7 @@ class ChatManager {
         }
         // Add command to check ML status
         if message.lowercased() == "!ml status" {
-            let bertStats = EmbeddingsService.shared.getStats()
+            _ = EmbeddingsService.shared.getStats()
             let mlStats = """
             === ML System Status ===
             
@@ -64,7 +86,7 @@ class ChatManager {
         }
         
         // First check if we need to process this message
-        let shouldProcess = try preprocessor.shouldProcessMessage(message)
+        _ = try preprocessor.shouldProcessMessage(message)
         
         // Only check cache for non-programming questions
         if preprocessor.shouldCache(message) {

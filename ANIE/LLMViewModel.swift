@@ -97,7 +97,7 @@ class LLMViewModel: ObservableObject {
     }
     
     func processUserInput(_ input: String) async {
-        guard var session = currentSession else { return }
+        guard currentSession != nil else { return }
         isProcessing = true
         processingProgress = 0
         

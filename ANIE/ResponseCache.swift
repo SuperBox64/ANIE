@@ -10,8 +10,9 @@ struct CachedResponse: Codable {
 class ResponseCache {
     private var cache: [CachedResponse] = []
     private let embeddings: EmbeddingsGenerator?
-    private let similarityThreshold: Float = 0.90
+    private let similarityThreshold: Float = 0.95
     private let cacheKey = "bert_response_cache"
+    private let maxLengthDifference = 0.2
     
     var threshold: Float {
         return similarityThreshold
@@ -46,16 +47,41 @@ class ResponseCache {
         
         do {
             let queryEmbeddings = try embeddings.generateEmbeddings(for: query)
+            let queryWords = query.lowercased().split(separator: " ").map(String.init)
             
             // Find most similar cached response
             var bestMatch: (similarity: Float, response: String, query: String)? = nil
             
             for cached in cache {
+                // Check length similarity first
+                let cachedWords = cached.query.lowercased().split(separator: " ").map(String.init)
+                let lengthRatio = Double(min(queryWords.count, cachedWords.count)) / 
+                                Double(max(queryWords.count, cachedWords.count))
+                
+                // Skip if length difference is too large
+                if lengthRatio < (1.0 - maxLengthDifference) {
+                    print("📏 Length mismatch:")
+                    print("   Query words: \(queryWords.count)")
+                    print("   Cached words: \(cachedWords.count)")
+                    continue
+                }
+                
+                // Calculate word overlap
+                let commonWords = Set(queryWords).intersection(Set(cachedWords))
+                let overlapRatio = Double(commonWords.count) / Double(queryWords.count)
+                
+                // Skip if word overlap is too low
+                if overlapRatio < 0.7 {  // At least 70% word overlap required
+                    print("📚 Low word overlap: \(Int(overlapRatio * 100))%")
+                    continue
+                }
+                
                 let similarity = cosineSimilarity(queryEmbeddings, cached.embeddings)
                 print("📊 Cache comparison:")
                 print("   Query: '\(query)'")
                 print("   Cached: '\(cached.query)'")
                 print("   Similarity: \(similarity)")
+                print("   Word overlap: \(Int(overlapRatio * 100))%")
                 
                 if similarity > similarityThreshold {
                     if bestMatch == nil || similarity > bestMatch!.similarity {
@@ -63,6 +89,7 @@ class ResponseCache {
                         print("✅ New best match found:")
                         print("   Original query: '\(cached.query)'")
                         print("   Similarity: \(similarity)")
+                        print("   Word overlap: \(Int(overlapRatio * 100))%")
                     }
                 }
             }
