@@ -22,9 +22,33 @@ class ChatManager {
     }
     
     func processMessage(_ message: String) async throws -> String {
-        // Add command to check BERT status
-        if message.lowercased() == "!bert status" {
-            return EmbeddingsService.shared.getStats()
+        if message.lowercased() == "!ml clear" {
+            cache.clearCache()
+            return "✨ BERT cache cleared"
+        }
+        // Add command to check ML status
+        if message.lowercased() == "!ml status" {
+            let bertStats = EmbeddingsService.shared.getStats()
+            let mlStats = """
+            === ML System Status ===
+            
+            🧠 CoreML Status:
+            • ANE Available: \(MLDeviceCapabilities.hasANE)
+            • Compute Units: \(MLDeviceCapabilities.getOptimalComputeUnits())
+            
+            🤖 BERT Status:
+            • Model Active: \(EmbeddingsService.shared.generator != nil)
+            • Dimension: \(EmbeddingsService.shared.generator?.modelInfo()["embeddingDimension"] ?? 0)
+            • Cache Operations: \(EmbeddingsService.shared.usageCount)
+            • Using ANE: \(MLDeviceCapabilities.hasANE)
+            
+            💾 Cache Status:
+            • Similarity Threshold: \(String(format: "%.2f", cache.threshold))
+            • Cached Items: \(cache.getCacheSize())
+            
+            ========================
+            """
+            return mlStats
         }
         
         // First check if we need to process this message

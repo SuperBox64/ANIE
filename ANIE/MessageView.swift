@@ -10,26 +10,22 @@ struct MessageView: View {
     var body: some View {
         HStack(alignment: .top) {
             if !message.isUser {
-                Text("ANIE")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(width: 40, alignment: .trailing)
+                VStack(spacing: 2) {
+                    Text("ANIE")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 3)
+                    
+                    if message.usedBERT {
+                        Text("🤖")
+                            .font(.system(size: 16))
+                            .scaleEffect(1.2)
+                    }
+                }
+                .frame(width: 40, alignment: .trailing)
             }
             
             VStack(alignment: .leading) {
-                if !message.isUser && message.usedBERT {
-                    HStack {
-                        Text("🤖 BERT Cache")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.black.opacity(0.2))
-                            .cornerRadius(4)
-                    }
-                    .padding(.bottom, 2)
-                }
-                
                 let codeBlocks = extractCodeBlocks(from: message.content)
                 
                 if codeBlocks.isEmpty {
