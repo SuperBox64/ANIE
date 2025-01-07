@@ -15,6 +15,7 @@ struct MessageView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.top, 3)
+                        .padding(.bottom, 4)
                     
                     if message.usedBERT {
                         Text("🤖")

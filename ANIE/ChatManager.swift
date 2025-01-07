@@ -3,6 +3,7 @@ import Foundation
 
 protocol ChatGPTClient {
     func generateResponse(for message: String) async throws -> String
+    func clearHistory()
 }
 
 class ChatManager {
@@ -23,8 +24,15 @@ class ChatManager {
     
     func processMessage(_ message: String) async throws -> String {
         if message.lowercased() == "!ml clear" {
+            // Clear BERT cache
             cache.clearCache()
-            return "✨ BERT cache cleared"
+            // Clear conversation history
+            apiClient.clearHistory()
+            return """
+            ✨ All caches cleared:
+            • BERT response cache
+            • Conversation history
+            """
         }
         // Add command to check ML status
         if message.lowercased() == "!ml status" {
@@ -54,18 +62,23 @@ class ChatManager {
         // First check if we need to process this message
         let shouldProcess = try preprocessor.shouldProcessMessage(message)
         
-        // Check cache for similar queries using embeddings
-        if let cachedResponse = try cache.findSimilarResponse(for: message) {
-            print("🤖 Using BERT cache for response")
-            return cachedResponse + "\n[Retrieved using BERT]"
+        // Only check cache for non-programming questions
+        if preprocessor.shouldCache(message) {
+            if let cachedResponse = try cache.findSimilarResponse(for: message) {
+                print("🤖 Using BERT cache for response")
+                return cachedResponse + "\n[Retrieved using BERT]"
+            }
+        } else {
+            print("💭 Skipping cache for programming question")
         }
         
         print("💭 No cache hit, using ChatGPT")
-        // If no cache hit, call ChatGPT API
         let response = try await apiClient.generateResponse(for: message)
         
-        // Cache the new response
-        try cache.cacheResponse(query: message, response: response)
+        // Only cache non-programming responses
+        if preprocessor.shouldCache(message) {
+            try cache.cacheResponse(query: message, response: response)
+        }
         
         return response
     }

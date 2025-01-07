@@ -74,6 +74,12 @@ class LLMModelHandler: ChatGPTClient {
     
     func clearHistory() {
         conversationHistory.removeAll()
+        // Keep only the system prompt
+        let systemPrompt = ChatMessage(
+            content: "You are ANIE (Artificial Neural Intelligence Engine), a helpful and friendly AI assistant. You provide clear, concise answers and can help with a wide range of tasks including coding, analysis, and general questions. You maintain a professional yet approachable tone.",
+            role: "system"
+        )
+        conversationHistory.append(systemPrompt)
     }
     
     func restoreConversation(from messages: [Message]) {

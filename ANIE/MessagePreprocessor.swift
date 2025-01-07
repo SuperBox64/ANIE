@@ -2,6 +2,12 @@ import Foundation
 
 class MessagePreprocessor {
     private let embeddings: EmbeddingsGenerator?
+    private let programmingKeywords = Set([
+        "code", "programming", "function", "class", "variable",
+        "python", "javascript", "java", "swift", "rust", "c++",
+        "debug", "compiler", "syntax", "algorithm", "api",
+        "framework", "library", "code review", "git", "database"
+    ])
     
     init() {
         self.embeddings = EmbeddingsService.shared.generator
@@ -19,19 +25,20 @@ class MessagePreprocessor {
             return true
         }
         
-        // Try to generate embeddings - if successful, message is valid
-        if let embeddings = self.embeddings {
-            do {
-                _ = try embeddings.generateEmbeddings(for: trimmed)
-                return true
-            } catch {
-                print("⚠️ Embeddings error: \(error.localizedDescription)")
-                // If embeddings fail, still allow the message to be processed
-                return true
+        return true
+    }
+    
+    func shouldCache(_ message: String) -> Bool {
+        let lowercased = message.lowercased()
+        
+        // Check if message contains programming keywords
+        for keyword in programmingKeywords {
+            if lowercased.contains(keyword) {
+                print("🚫 Skipping cache for programming question: '\(message.prefix(30))...'")
+                return false
             }
         }
         
-        // If no embeddings service, process all non-empty messages
         return true
     }
 } 
