@@ -10,7 +10,7 @@ struct CachedResponse: Codable {
 class ResponseCache {
     private var cache: [CachedResponse] = []
     private let embeddings: EmbeddingsGenerator?
-    private let similarityThreshold: Float = 0.70
+    private let similarityThreshold: Float = 0.90
     private let cacheKey = "bert_response_cache"
     
     var threshold: Float {
@@ -48,26 +48,34 @@ class ResponseCache {
             let queryEmbeddings = try embeddings.generateEmbeddings(for: query)
             
             // Find most similar cached response
-            var bestMatch: (similarity: Float, response: String)? = nil
+            var bestMatch: (similarity: Float, response: String, query: String)? = nil
             
             for cached in cache {
                 let similarity = cosineSimilarity(queryEmbeddings, cached.embeddings)
-                print("📊 Similarity score: \(similarity) for cached query: \(cached.query)")
+                print("📊 Cache comparison:")
+                print("   Query: '\(query)'")
+                print("   Cached: '\(cached.query)'")
+                print("   Similarity: \(similarity)")
                 
                 if similarity > similarityThreshold {
                     if bestMatch == nil || similarity > bestMatch!.similarity {
-                        bestMatch = (similarity, cached.response)
-                        print("✅ Found cache match with similarity: \(similarity)")
+                        bestMatch = (similarity, cached.response, cached.query)
+                        print("✅ New best match found:")
+                        print("   Original query: '\(cached.query)'")
+                        print("   Similarity: \(similarity)")
                     }
                 }
             }
             
             if let match = bestMatch {
-                print("🎯 Using cached response with similarity: \(match.similarity)")
+                print("🎯 Using cached response:")
+                print("   Query: '\(query)'")
+                print("   Matched with: '\(match.query)'")
+                print("   Similarity: \(match.similarity)")
                 return match.response + "\n[Retrieved using BERT]"
             }
             
-            print("❌ No similar responses found in cache (threshold: \(similarityThreshold))")
+            print("❌ No similar responses found (threshold: \(similarityThreshold))")
             return nil
             
         } catch {
@@ -106,9 +114,17 @@ class ResponseCache {
     
     // Add cache management methods
     func clearCache() {
+        // Clear in-memory cache
         cache.removeAll()
-        saveCache()
-        print("🧹 Cleared BERT cache")
+        
+        // Clear persisted cache in UserDefaults
+        UserDefaults.standard.removeObject(forKey: cacheKey)
+        UserDefaults.standard.synchronize()
+        
+        print("🧹 Cleared BERT cache:")
+        print("   • In-memory cache cleared")
+        print("   • Persisted cache cleared")
+        print("   • Total items: 0")
     }
     
     private func cosineSimilarity(_ a: [Float], _ b: [Float]) -> Float {

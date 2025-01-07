@@ -28,10 +28,14 @@ class ChatManager {
             cache.clearCache()
             // Clear conversation history
             apiClient.clearHistory()
+            // Clear UserDefaults
+            UserDefaults.standard.synchronize()
+            
             return """
             ✨ All caches cleared:
             • BERT response cache
             • Conversation history
+            • Persisted data
             """
         }
         // Add command to check ML status
