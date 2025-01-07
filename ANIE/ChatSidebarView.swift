@@ -84,6 +84,47 @@ struct DeleteSessionDialog: View {
     }
 }
 
+struct ClearSessionDialog: View {
+    @Binding var isPresented: Bool
+    let session: ChatSession
+    var onClear: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // App Icon
+            Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
+                .resizable()
+                .frame(width: 64, height: 64)
+                .padding(.top, 8)
+            
+            Text("Clear Chat History")
+                .font(.headline)
+            
+            Text("Are you sure you want to clear the chat history for '\(session.subject)'?")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+            
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    isPresented = false
+                }
+                
+                Button("Clear") {
+                    onClear()
+                    isPresented = false
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .keyboardShortcut(.return, modifiers: [])
+            }
+        }
+        .padding(20)
+        .frame(width: 300)
+        .background(Color(.windowBackgroundColor))
+        .cornerRadius(12)
+    }
+}
+
 struct ChatSidebarView: View {
     @ObservedObject var viewModel: LLMViewModel
     @State private var showingNewSessionAlert = false

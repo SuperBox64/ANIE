@@ -13,6 +13,7 @@ struct LLMChatView: View {
     @State private var initialScrollDone = false
     @AppStorage("useLocalAI") private var useLocalAI = false
     @FocusState private var isTextFieldFocused: Bool
+    @State private var showingClearDialog = false
     
     var body: some View {
         HSplitView {
@@ -130,7 +131,7 @@ struct LLMChatView: View {
                         
                         VStack(spacing: 22) {
                             Button(action: {
-                                showingDeleteAlert = true
+                                showingClearDialog = true
                             }) {
                                 Image(systemName: "trash.circle.fill")
                                     .font(.system(size: 32))
@@ -163,12 +164,15 @@ struct LLMChatView: View {
         }
         .background(.bar)
         .alert("Clear Chat History", isPresented: $showingDeleteAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Clear", role: .destructive) {
+            Button("Cancel") { }
+            Button("Clear") {
                 if let session = viewModel.currentSession {
                     viewModel.clearSessionHistory(session.id)
                 }
             }
+            .buttonStyle(.borderedProminent)
+            .tint(.red)
+            .keyboardShortcut(.return, modifiers: [])
         } message: {
             if let session = viewModel.currentSession {
                 Text("Are you sure you want to clear the chat history for '\(session.subject)'?")
@@ -187,6 +191,17 @@ struct LLMChatView: View {
         }
         .onAppear {
             isTextFieldFocused = true
+        }
+        .sheet(isPresented: $showingClearDialog) {
+            if let session = viewModel.currentSession {
+                ClearSessionDialog(
+                    isPresented: $showingClearDialog,
+                    session: session,
+                    onClear: {
+                        viewModel.clearSessionHistory(session.id)
+                    }
+                )
+            }
         }
     }
     
