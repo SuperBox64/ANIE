@@ -1,16 +1,16 @@
 import Foundation
 import CoreML
 
-protocol ChatGPTClient {
+public protocol ChatGPTClient {
     func generateResponse(for message: String) async throws -> String
 }
 
-class ChatManager {
-    private let preprocessor: MessagePreprocessor
+public class ChatManager {
+    private let preprocessor: CustomMessagePreprocessor
     private let cache: ResponseCache
     private let apiClient: ChatGPTClient
     
-    init(preprocessor: MessagePreprocessor, cache: ResponseCache, apiClient: ChatGPTClient) {
+    public init(preprocessor: CustomMessagePreprocessor, cache: ResponseCache, apiClient: ChatGPTClient) {
         self.preprocessor = preprocessor
         self.cache = cache
         self.apiClient = apiClient
@@ -21,31 +21,10 @@ class ChatManager {
         print("============================")
     }
     
-    func processMessage(_ message: String) async throws -> String {
-        // Special command to check ML system status
-        if message.lowercased() == "!ml status" {
-            var status = "=== ML System Status ===\n"
-            status += "ANE Available: \(MLDeviceCapabilities.hasANE)\n"
-            status += "Current Compute Units: \(MLDeviceCapabilities.getOptimalComputeUnits())\n"
-            
-            // Add model loading status
-            status += "\nModel Status:\n"
-            status += "- Embeddings Model: Loaded and using \(MLDeviceCapabilities.hasANE ? "ANE" : "CPU/GPU")\n"
-            status += "- Classifier Model: Loaded and using \(MLDeviceCapabilities.hasANE ? "ANE" : "CPU/GPU")\n"
-            
-            // Add performance metrics
-            do {
-                let testMessage = "This is a test message for performance measurement"
-                let start = CFAbsoluteTimeGetCurrent()
-                _ = try preprocessor.shouldProcessMessage(testMessage)
-                let duration = (CFAbsoluteTimeGetCurrent() - start) * 1000
-                status += "\nPerformance Test:\n"
-                status += "Message processing time: \(String(format: "%.2f", duration))ms\n"
-            } catch {
-                status += "\nError running performance test: \(error)\n"
-            }
-            
-            return status
+    public func processMessage(_ message: String) async throws -> String {
+        // Handle test commands
+        if message.hasPrefix("!") {
+            return try await handleCommand(message)
         }
         
         // Regular message processing...
@@ -80,30 +59,86 @@ class ChatManager {
         return response
     }
     
-    // Add a method to test ML performance
-    func runMLPerformanceTest() async {
-        print("\n=== ML Performance Test ===")
-        let testMessages = [
-            "Hello, how are you?",
-            "What's the weather like today?",
-            "Can you help me with a complex programming task?",
-            "Tell me a joke",
-            "Explain quantum computing"
-        ]
+    private func handleCommand(_ command: String) async throws -> String {
+        // Split command into parts and get the base command
+        let parts = command.lowercased().split(separator: " ")
+        guard parts.count >= 1 else { return "Invalid command" }
         
-        print("Testing preprocessing and embedding generation...")
-        for message in testMessages {
-            do {
-                let start = CFAbsoluteTimeGetCurrent()
-                let shouldProcess = try preprocessor.shouldProcessMessage(message)
-                let end = CFAbsoluteTimeGetCurrent()
-                print("Message: '\(message.prefix(20))...'")
-                print("Should process: \(shouldProcess)")
-                print("Processing time: \((end - start) * 1000)ms\n")
-            } catch {
-                print("Error processing message: \(error)")
+        let baseCommand = parts[0]
+        let subCommand = parts.count > 1 ? String(parts[1]) : ""
+        
+        switch baseCommand {
+        case "!ml":
+            switch subCommand {
+            case "status":
+                return MLDeviceCapabilities.runModelTests()
+                
+            case "test":
+                var result = "=== Running ML Tests ===\n\n"
+                
+                // Test message preprocessing
+                result += "Testing Message Preprocessor:\n"
+                let testMessages = [
+                    "Hello, how are you?",
+                    "What's the weather like today?",
+                    "Can you help me with a complex programming task?"
+                ]
+                
+                for message in testMessages {
+                    let shouldProcess = try preprocessor.shouldProcessMessage(message)
+                    result += "- Message: \"\(message)\"\n"
+                    result += "  Should process: \(shouldProcess)\n"
+                }
+                
+                // Test response cache
+                result += "\nTesting Response Cache:\n"
+                let testQuery = "This is a test query"
+                let testResponse = "This is a test response"
+                
+                // Test caching
+                try cache.cacheResponse(query: testQuery, response: testResponse)
+                result += "- Cache storage: Passed\n"
+                
+                // Test retrieval
+                if let cached = try cache.findSimilarResponse(for: testQuery) {
+                    result += "- Cache retrieval: Passed\n"
+                    result += "- Retrieved response matches: \(cached == testResponse)\n"
+                } else {
+                    result += "- Cache retrieval: Failed\n"
+                }
+                
+                // Test similar query
+                let similarQuery = "This is a test question"
+                if let similar = try cache.findSimilarResponse(for: similarQuery) {
+                    result += "- Similar query test: Passed\n"
+                    result += "- Similar query response: \"\(similar)\"\n"
+                }
+                
+                result += "\n=== Test Complete ===\n"
+                return result
+                
+            case "help", "":
+                return """
+                Available Commands:
+                !ml status - Show ML system status
+                !ml test - Run ML component tests
+                !help - Show this help message
+                """
+                
+            default:
+                return "Unknown ML command. Type !ml help for available commands."
             }
+            
+        case "!help":
+            return """
+            Available Commands:
+            !ml status - Show ML system status
+            !ml test - Run ML component tests
+            !help - Show this help message
+            """
+            
+        default:
+            return "Unknown command. Type !help for available commands."
         }
-        print("========================")
     }
 } 
