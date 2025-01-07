@@ -92,6 +92,7 @@ class LLMViewModel: ObservableObject {
         selectedSessionId = id
         if let session = currentSession {
             modelHandler.restoreConversation(from: session.messages)
+            ScrollManager.shared.scrollToBottom()
         }
     }
     
@@ -122,6 +123,7 @@ class LLMViewModel: ObservableObject {
                 if let index = sessions.firstIndex(where: { $0.id == selectedSessionId }) {
                     sessions[index].messages.append(responseMessage)
                     saveSessions()
+                    ScrollManager.shared.scrollToBottom()
                 }
             }
         } catch {

@@ -38,10 +38,8 @@ struct MessageView: View {
                             .padding(.bottom, 7)
                         
                         copyButton(for: message.content)
-                            .padding(4)
-                            .background(Color.black.opacity(0.15))
-                            .cornerRadius(7)
-                            .padding([.bottom, .trailing], 4)
+                            .padding(.trailing, 3)
+                            .padding(.bottom, 3)
                     }
                     .background(message.isUser ? Color.blue : Color.gray.opacity(0.2))
                     .cornerRadius(11)
@@ -57,10 +55,8 @@ struct MessageView: View {
                                 .font(block.isCode ? .system(.body, design: .monospaced) : .body)
                             
                             copyButton(for: block.content, index: index)
-                                .padding(4)
-                                .background(Color.black.opacity(0.15))
-                                .cornerRadius(7)
-                                .padding([.bottom, .trailing], 4)
+                                .padding(.trailing, 3)
+                                .padding(.bottom, 3)
                         }
                         .background(block.isCode ? Color.black.opacity(0.8) : (message.isUser ? Color.blue : Color.gray.opacity(0.2)))
                         .cornerRadius(11)
@@ -99,15 +95,27 @@ struct MessageView: View {
                 }
             }
         }) {
-            Image(systemName: isCopiedState ? "checkmark" : "doc.on.doc")
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 24, height: 24)
-                .foregroundColor(isCopiedState ? Color.green : .white)
+            ZStack {
+                // Background with border
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(Color.black.opacity(0.15))
+                    .frame(width: 32, height: 32)
+                
+                // Icon
+                Image(systemName: isCopiedState ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(isCopiedState ? Color.green : .white)
+            }
+            .contentShape(Rectangle())  // Make entire area clickable
+            .onHover { hovering in
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
         }
         .buttonStyle(PlainButtonStyle())
-        .onHover { hovering in
-            isHovering = hovering
-        }
     }
     
     private func extractCodeBlocks(from text: String) -> [(content: String, isCode: Bool)] {

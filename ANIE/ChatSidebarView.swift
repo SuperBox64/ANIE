@@ -94,19 +94,23 @@ struct ChatSidebarView: View {
         VStack {
             // Header with add/remove buttons
             HStack {
-                Button(action: { showingNewSessionAlert = true }) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .medium))
+                Button(action: {
+                    viewModel.addSession(subject: "New Chat")
+                }) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 16))
                         .foregroundColor(.primary)
-                        .frame(width: 24, height: 24)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color(.controlBackgroundColor))
-                        )
+                        .frame(width: 30, height: 30)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .frame(width: 32, height: 32)
+                .buttonStyle(PlainButtonStyle())
+                .onHover { hovering in
+                    if hovering {
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
                 
                 Spacer()
                 
@@ -128,14 +132,41 @@ struct ChatSidebarView: View {
                 .buttonStyle(.plain)
                 .frame(width: 32, height: 32)
                 .disabled(viewModel.selectedSessionId == nil)
+                .onHover { hovering in
+                    if hovering && viewModel.selectedSessionId != nil {  // Only show pointer if button is enabled
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
             
             // Sessions list
             List(viewModel.sessions, selection: $viewModel.selectedSessionId) { session in
-                Text(session.subject)
-                    .tag(session.id)
+                Button {
+                    viewModel.selectSession(id: session.id)
+                } label: {
+                    HStack {
+                        Text(session.subject)
+                            .lineLimit(1)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(session.id == viewModel.selectedSessionId ? 
+                        Color.blue.opacity(0.2) : Color.clear)
+                    .cornerRadius(4)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .onHover { hovering in
+                    if hovering {
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
             }
         }
         .frame(width: 200)

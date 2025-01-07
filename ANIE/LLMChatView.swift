@@ -2,9 +2,10 @@ import SwiftUI
 
 struct LLMChatView: View {
     @ObservedObject var viewModel: LLMViewModel
+    @EnvironmentObject var scrollManager: ScrollManager
     @State private var userInput: String = ""
     @State private var isHovering = false
-    @State private var scrollProxy: ScrollViewProxy? = nil
+    @State private var scrollProxy: ScrollViewProxy?
     @State private var lastMessageId: UUID? = nil
     @State private var showingDeleteAlert = false
     @State private var showingConfiguration = false
@@ -34,11 +35,18 @@ struct LLMChatView: View {
                     }
                     .buttonStyle(.plain)
                     .padding([.top, .trailing], 8)
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.pointingHand.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
                 }
                 
                 // Messages ScrollView
-                ScrollView {
-                    ScrollViewReader { proxy in
+                ScrollViewReader { proxy in
+                    ScrollView {
                         LazyVStack(spacing: 9) {
                             if let session = viewModel.currentSession {
                                 ForEach(session.messages) { message in
@@ -72,6 +80,27 @@ struct LLMChatView: View {
                                 withAnimation {
                                     proxy.scrollTo(lastMessage.id, anchor: .bottom)
                                 }
+                            }
+                        }
+                        
+                        // Add an empty view at the bottom for scrolling
+                        Color.clear
+                            .frame(height: 1)
+                            .id("bottom")
+                    }
+                    .onChange(of: scrollManager.shouldScrollToBottom) { oldValue, newValue in
+                        if newValue {
+                            withAnimation {
+                                proxy.scrollTo("bottom", anchor: .bottom)
+                            }
+                        }
+                    }
+                    .onAppear {
+                        scrollProxy = proxy
+                        // Initial scroll to bottom
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            withAnimation {
+                                proxy.scrollTo("bottom", anchor: .bottom)
                             }
                         }
                     }
@@ -128,10 +157,18 @@ struct LLMChatView: View {
                                     .font(.system(size: 32))
                                     .foregroundColor(.red.opacity(0.8))
                                     .background(Circle().fill(Color.white))
+                                    .contentShape(Circle())
                             }
                             .buttonStyle(PlainButtonStyle())
                             .keyboardShortcut(.delete, modifiers: .command)
                             .disabled(viewModel.currentSession?.messages.isEmpty ?? true)
+                            .onHover { hovering in
+                                if hovering {
+                                    NSCursor.pointingHand.push()
+                                } else {
+                                    NSCursor.pop()
+                                }
+                            }
                             
                             Button(action: sendMessage) {
                                 Image(systemName: "arrow.up.circle.fill")
@@ -139,10 +176,18 @@ struct LLMChatView: View {
                                     .foregroundColor(userInput.isEmpty || viewModel.isProcessing ? 
                                         Color.black.opacity(0.5) : .blue)
                                     .background(Circle().fill(Color.white))
+                                    .contentShape(Circle())
                             }
                             .buttonStyle(PlainButtonStyle())
                             .keyboardShortcut(.return, modifiers: .command)
                             .disabled(userInput.isEmpty || viewModel.isProcessing)
+                            .onHover { hovering in
+                                if hovering && !userInput.isEmpty && !viewModel.isProcessing {
+                                    NSCursor.pointingHand.push()
+                                } else {
+                                    NSCursor.pop()
+                                }
+                            }
                         }
                         .padding(.trailing, 30)
                         .offset(y: -1)
