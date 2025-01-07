@@ -2,7 +2,7 @@
  Artificial Neural Intelligence Engine
 
 - Uses ChatGPT API for main calls
-- BERT via Apple Natural Language Model for Caching
+- BERT via CoreML / Apple Natural Language Model for Caching
 - Takes advantage of Apple Neural Engine
 - Does not cache computer programming calls
 - Designed by Todd Bruss in North Carolina
