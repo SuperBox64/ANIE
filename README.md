@@ -20,3 +20,5 @@ ANE Available: true
 Optimal Compute Units: MLComputeUnits(rawValue: 2)
 Supported Units: MLComputeUnits(rawValue: 2)
 ============================
+Unable to open mach-O at path: default.metallib  Error:2
+Message from debugger: killed
