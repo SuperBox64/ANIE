@@ -1,39 +1,91 @@
-import CoreML
+import Foundation
+
+struct CachedResponse {
+    let query: String
+    let response: String
+    let embeddings: [Float]
+    let timestamp: Date
+}
 
 class ResponseCache {
-    private var cache: [(query: String, embedding: [Float], response: String)] = []
-    private let embeddingsGenerator: EmbeddingsGenerator
+    private var cache: [CachedResponse] = []
+    private let embeddings: EmbeddingsGenerator?
+    private let similarityThreshold: Float = 0.70  // Changed from 0.85
     
-    init(embeddingsGenerator: EmbeddingsGenerator) {
-        self.embeddingsGenerator = embeddingsGenerator
+    init() {
+        self.embeddings = EmbeddingsService.shared.generator
     }
     
-    func findSimilarResponse(for query: String, similarityThreshold: Float = 0.9) throws -> String? {
-        let queryEmbedding = try embeddingsGenerator.generateEmbeddings(for: query)
-        
-        // Find most similar cached query
-        let mostSimilar = cache.map { entry -> (similarity: Float, response: String) in
-            let similarity = cosineSimilarity(queryEmbedding, entry.embedding)
-            return (similarity, entry.response)
-        }.max { $0.similarity < $1.similarity }
-        
-        guard let result = mostSimilar,
-              result.similarity >= similarityThreshold else {
+    func findSimilarResponse(for query: String) throws -> String? {
+        guard let embeddings = self.embeddings else {
+            print("⚠️ Embeddings generator not available")
             return nil
         }
         
-        return result.response
+        do {
+            let queryEmbeddings = try embeddings.generateEmbeddings(for: query)
+            
+            // Find most similar cached response
+            var bestMatch: (similarity: Float, response: String)? = nil
+            
+            for cached in cache {
+                let similarity = cosineSimilarity(queryEmbeddings, cached.embeddings)
+                print("📊 Similarity score: \(similarity) for cached query: \(cached.query)")
+                
+                if similarity > similarityThreshold {
+                    if bestMatch == nil || similarity > bestMatch!.similarity {
+                        bestMatch = (similarity, cached.response)
+                        print("✅ Found cache match with similarity: \(similarity)")
+                    }
+                }
+            }
+            
+            if let match = bestMatch {
+                print("🎯 Using cached response with similarity: \(match.similarity)")
+                return match.response + "\n[Retrieved using BERT]"
+            }
+            
+            print("❌ No similar responses found in cache (threshold: \(similarityThreshold))")
+            return nil
+            
+        } catch {
+            print("⚠️ Error generating embeddings: \(error.localizedDescription)")
+            return nil
+        }
     }
     
     func cacheResponse(query: String, response: String) throws {
-        let embedding = try embeddingsGenerator.generateEmbeddings(for: query)
-        cache.append((query: query, embedding: embedding, response: response))
+        guard let embeddings = self.embeddings else {
+            print("⚠️ Cannot cache: embeddings generator not available")
+            return
+        }
+        
+        do {
+            let queryEmbeddings = try embeddings.generateEmbeddings(for: query)
+            
+            let cachedResponse = CachedResponse(
+                query: query,
+                response: response,
+                embeddings: queryEmbeddings,
+                timestamp: Date()
+            )
+            
+            cache.append(cachedResponse)
+            print("✅ Cached new response for query: \(query)")
+            print("📊 Total cached items: \(cache.count)")
+            
+        } catch {
+            print("⚠️ Failed to cache response: \(error.localizedDescription)")
+        }
     }
     
     private func cosineSimilarity(_ a: [Float], _ b: [Float]) -> Float {
+        guard a.count == b.count && !a.isEmpty else { return 0 }
+        
         let dotProduct = zip(a, b).map(*).reduce(0, +)
-        let magnitudeA = sqrt(a.map { $0 * $0 }.reduce(0, +))
-        let magnitudeB = sqrt(b.map { $0 * $0 }.reduce(0, +))
-        return dotProduct / (magnitudeA * magnitudeB)
+        let normA = sqrt(a.map { $0 * $0 }.reduce(0, +))
+        let normB = sqrt(b.map { $0 * $0 }.reduce(0, +))
+        
+        return dotProduct / (normA * normB)
     }
 } 

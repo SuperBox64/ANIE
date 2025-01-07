@@ -11,6 +11,7 @@ class LLMViewModel: ObservableObject {
     private let modelHandler = LLMModelHandler()
     private let sessionsKey = "chatSessions"
     private let credentialsManager = CredentialsManager()
+    private let chatManager: ChatManager
     
     var currentSession: ChatSession? {
         get {
@@ -35,6 +36,15 @@ class LLMViewModel: ObservableObject {
     }
     
     init() {
+        // Initialize dependencies
+        let preprocessor = MessagePreprocessor()
+        let cache = ResponseCache()
+        self.chatManager = ChatManager(
+            preprocessor: preprocessor,
+            cache: cache,
+            apiClient: modelHandler
+        )
+        
         loadSessions()
         // Create default session if none exist
         if sessions.isEmpty {
@@ -91,57 +101,47 @@ class LLMViewModel: ObservableObject {
         processingProgress = 0
         
         let userMessage = Message(content: input, isUser: true)
-        session.messages.append(userMessage)
-        currentSession = session
-        
-        // Handle ML status command
-        if input.lowercased() == "!ml status" {
-            let status = """
-            === ML System Status ===
-            ANE Available: \(MLDeviceCapabilities.hasANE)
-            Current Compute Units: \(MLDeviceCapabilities.getOptimalComputeUnits())
-            
-            Model Status:
-            - Embeddings Model: \(MLDeviceCapabilities.hasANE ? "Using ANE" : "Using CPU/GPU")
-            - Classifier Model: \(MLDeviceCapabilities.hasANE ? "Using ANE" : "Using CPU/GPU")
-            
-            Note: CoreML integration is configured and \(MLDeviceCapabilities.hasANE ? "ANE is available" : "ANE is not available") on this device.
-            """
-            
-            session.messages.append(Message(content: status, isUser: false))
-            currentSession = session
-            isProcessing = false
-            processingProgress = 1.0
-            return
-        }
-        
-        // Simulate progress while waiting for response
-        Task {
-            while isProcessing {
-                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
-                if processingProgress < 0.95 {  // Cap at 95% until actual completion
-                    processingProgress += 0.05
-                }
+        await MainActor.run {
+            if let index = sessions.firstIndex(where: { $0.id == selectedSessionId }) {
+                sessions[index].messages.append(userMessage)
             }
         }
         
         do {
-            let response = try await modelHandler.generateResponse(for: input)
-            session.messages.append(Message(content: response, isUser: false))
-            currentSession = session
-        } catch ChatError.serverError(let code, let message) {
-            session.messages.append(Message(content: "Server error (\(code)): \(message)", isUser: false))
-            currentSession = session
-        } catch ChatError.networkError(let error) {
-            session.messages.append(Message(content: "Network error: \(error.localizedDescription)", isUser: false))
-            currentSession = session
+            let response = try await chatManager.processMessage(input)
+            let usedBERT = response.contains("[Retrieved using BERT]")
+            let cleanResponse = response.replacingOccurrences(of: "\n[Retrieved using BERT]", with: "")
+            
+            let responseMessage = Message(
+                content: cleanResponse,
+                isUser: false,
+                usedBERT: usedBERT
+            )
+            
+            await MainActor.run {
+                if let index = sessions.firstIndex(where: { $0.id == selectedSessionId }) {
+                    sessions[index].messages.append(responseMessage)
+                    saveSessions()
+                }
+            }
         } catch {
-            session.messages.append(Message(content: "Error: \(error.localizedDescription)", isUser: false))
-            currentSession = session
+            let errorMessage = Message(
+                content: "Error: \(error.localizedDescription)",
+                isUser: false,
+                usedBERT: false
+            )
+            await MainActor.run {
+                if let index = sessions.firstIndex(where: { $0.id == selectedSessionId }) {
+                    sessions[index].messages.append(errorMessage)
+                    saveSessions()
+                }
+            }
         }
         
-        processingProgress = 1.0  // Complete the progress
-        isProcessing = false
+        await MainActor.run {
+            isProcessing = false
+            processingProgress = 1.0
+        }
     }
     
     func clearSessionHistory(_ sessionId: UUID) {

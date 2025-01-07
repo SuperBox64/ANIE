@@ -22,60 +22,26 @@ class ChatManager {
     }
     
     func processMessage(_ message: String) async throws -> String {
-        // Special command to check ML system status
-        if message.lowercased() == "!ml status" {
-            var status = "=== ML System Status ===\n"
-            status += "ANE Available: \(MLDeviceCapabilities.hasANE)\n"
-            status += "Current Compute Units: \(MLDeviceCapabilities.getOptimalComputeUnits())\n"
-            
-            // Add model loading status
-            status += "\nModel Status:\n"
-            status += "- Embeddings Model: Loaded and using \(MLDeviceCapabilities.hasANE ? "ANE" : "CPU/GPU")\n"
-            status += "- Classifier Model: Loaded and using \(MLDeviceCapabilities.hasANE ? "ANE" : "CPU/GPU")\n"
-            
-            // Add performance metrics
-            do {
-                let testMessage = "This is a test message for performance measurement"
-                let start = CFAbsoluteTimeGetCurrent()
-                _ = try preprocessor.shouldProcessMessage(testMessage)
-                let duration = (CFAbsoluteTimeGetCurrent() - start) * 1000
-                status += "\nPerformance Test:\n"
-                status += "Message processing time: \(String(format: "%.2f", duration))ms\n"
-            } catch {
-                status += "\nError running performance test: \(error)\n"
-            }
-            
-            return status
+        // Add command to check BERT status
+        if message.lowercased() == "!bert status" {
+            return EmbeddingsService.shared.getStats()
         }
-        
-        // Regular message processing...
-        let startTime = CFAbsoluteTimeGetCurrent()
         
         // First check if we need to process this message
         let shouldProcess = try preprocessor.shouldProcessMessage(message)
-        let preprocessTime = CFAbsoluteTimeGetCurrent()
-        print("Preprocess time: \((preprocessTime - startTime) * 1000)ms")
         
-        guard shouldProcess else {
-            return "This message doesn't require processing."
-        }
-        
-        // Check cache for similar queries
+        // Check cache for similar queries using embeddings
         if let cachedResponse = try cache.findSimilarResponse(for: message) {
-            let cacheTime = CFAbsoluteTimeGetCurrent()
-            print("Cache lookup time: \((cacheTime - preprocessTime) * 1000)ms")
-            print("Using cached response")
-            return cachedResponse
+            print("🤖 Using BERT cache for response")
+            return cachedResponse + "\n[Retrieved using BERT]"
         }
         
-        // If no cache hit, call API
+        print("💭 No cache hit, using ChatGPT")
+        // If no cache hit, call ChatGPT API
         let response = try await apiClient.generateResponse(for: message)
         
         // Cache the new response
         try cache.cacheResponse(query: message, response: response)
-        
-        let endTime = CFAbsoluteTimeGetCurrent()
-        print("Total processing time: \((endTime - startTime) * 1000)ms")
         
         return response
     }

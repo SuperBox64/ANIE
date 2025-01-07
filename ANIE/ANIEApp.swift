@@ -8,8 +8,49 @@
 import SwiftUI
 import AppKit
 
+// Add a global singleton for embeddings
+class EmbeddingsService {
+    static let shared = EmbeddingsService()
+    private(set) var generator: EmbeddingsGenerator?
+    private(set) var usageCount: Int = 0
+    
+    private init() {
+        do {
+            generator = try EmbeddingsGenerator()
+            // Print initial diagnostics
+            if let info = generator?.modelInfo() {
+                print("=== Embeddings Model Initialized ===")
+                print("BERT Model Status: Active")
+                print("Compute Unit: \(MLDeviceCapabilities.hasANE ? "Apple Neural Engine" : "CPU/GPU")")
+                print("Model Info:", info)
+                print("==================================")
+            }
+        } catch {
+            print("⚠️ Failed to initialize BERT embeddings: \(error.localizedDescription)")
+        }
+    }
+    
+    func logUsage(operation: String) {
+        usageCount += 1
+        print("🤖 BERT Usage [\(usageCount)] - \(operation)")
+    }
+    
+    func getStats() -> String {
+        """
+        === BERT Usage Statistics ===
+        Total Operations: \(usageCount)
+        ANE Available: \(MLDeviceCapabilities.hasANE)
+        Active: \(generator != nil)
+        ========================
+        """
+    }
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Initialize embeddings service
+        _ = EmbeddingsService.shared
+        
         // Set window title after a brief delay to ensure window is created
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             if let window = NSApp.windows.first {

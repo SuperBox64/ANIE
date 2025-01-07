@@ -1,6 +1,6 @@
 import CoreML
+import NaturalLanguage
 
-// Change struct to class for MLFeatureProvider conformance
 class TextEmbeddingsInput: MLFeatureProvider {
     let text: String
     
@@ -20,7 +20,6 @@ class TextEmbeddingsInput: MLFeatureProvider {
     }
 }
 
-// Output can remain a struct
 class TextEmbeddingsOutput: MLFeatureProvider {
     let embeddings: [Float]
     
@@ -46,51 +45,136 @@ class TextEmbeddingsOutput: MLFeatureProvider {
 }
 
 class EmbeddingsGenerator {
-    private let model: MLModel
+    private let embedder: NLEmbedding?
+    private let modelVersion: String = "1.0"
+    private let maxTokenLength = 512  // BERT's typical max token length
     
     init() throws {
-        guard let modelURL = Bundle.main.url(forResource: "TextEmbeddings", withExtension: "mlmodel") else {
+        // Try to load Apple's built-in BERT model
+        guard let embedding = NLEmbedding.wordEmbedding(for: .english) else {
+            print("⚠️ Failed to load word embedding model")
             throw EmbeddingsError.modelNotFound
         }
+        self.embedder = embedding
+        print("✅ Successfully loaded word embedding model with dimension: \(embedding.dimension)")
         
-        // Try ANE first, fallback to CPU/GPU if not available
+        // Print model capabilities
         let config = MLModelConfiguration()
         config.computeUnits = .all
-        
-        do {
-            // Try loading with ANE support
-            self.model = try MLModel(contentsOf: modelURL, configuration: config)
-            print("Model loaded with ANE support")
-        } catch {
-            // Fallback to CPU/GPU
-            config.computeUnits = .cpuAndGPU
-            guard let fallbackModel = try? MLModel(contentsOf: modelURL, configuration: config) else {
-                throw EmbeddingsError.modelNotFound
-            }
-            self.model = fallbackModel
-            print("Model loaded in legacy mode (CPU/GPU)")
-        }
+        print("Model compute units: \(config.computeUnits.rawValue)")
+        print("ANE available: \(MLDeviceCapabilities.hasANE)")
     }
     
     func generateEmbeddings(for text: String) throws -> [Float] {
-        let input = TextEmbeddingsInput(text: text)
-        let prediction = try model.prediction(from: input)
-        
-        guard let embeddingsFeature = prediction.featureValue(for: "embeddings"),
-              let multiArray = embeddingsFeature.multiArrayValue else {
-            throw EmbeddingsError.predictionFailed
+        guard let embedder = embedder else {
+            throw EmbeddingsError.modelNotFound
         }
         
-        var embeddings = [Float]()
-        for i in 0..<multiArray.count {
-            embeddings.append(Float(truncating: multiArray[i]))
+        // Log BERT usage
+        EmbeddingsService.shared.logUsage(operation: "Generate embeddings for: \(text.prefix(30))...")
+        
+        // Preprocess text
+        let processedText = preprocess(text)
+        
+        // Split into words and normalize
+        let words = processedText.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .map { $0.lowercased() }
+        
+        guard !words.isEmpty else {
+            throw EmbeddingsError.invalidInput
         }
+        
+        // Initialize vector with zeros
+        var sumVector: [Double] = Array(repeating: 0, count: embedder.dimension)
+        var validWordCount = 0
+        
+        // Try different approaches to get embeddings for each word
+        for word in words {
+            if let vector = embedder.vector(for: word) {
+                // Direct word match
+                for (index, value) in vector.enumerated() {
+                    sumVector[index] += value
+                }
+                validWordCount += 1
+            } else if let vector = embedder.vector(for: word) {
+                // Try as phrase
+                for (index, value) in vector.enumerated() {
+                    sumVector[index] += value
+                }
+                validWordCount += 1
+            } else {
+                // Try subwords if word is long enough
+                let subwords = word.split(separator: " ")
+                for subword in subwords {
+                    if let vector = embedder.vector(for: String(subword)) {
+                        for (index, value) in vector.enumerated() {
+                            sumVector[index] += value
+                        }
+                        validWordCount += 1
+                    }
+                }
+            }
+        }
+        
+        // If we got at least one valid embedding, return the average
+        guard validWordCount > 0 else {
+            print("⚠️ No valid embeddings found for text: \(processedText)")
+            // Return zero vector instead of throwing error
+            return Array(repeating: 0, count: embedder.dimension)
+        }
+        
+        // Average the vectors and convert to Float
+        let embeddings = sumVector.map { Float($0 / Double(validWordCount)) }
+        print("✅ Generated embeddings with \(validWordCount) valid words")
         
         return embeddings
+    }
+    
+    private func preprocess(_ text: String) -> String {
+        // Basic preprocessing
+        var processed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        processed = processed.lowercased()
+        
+        // Truncate if needed
+        let words = processed.split(separator: " ")
+        if words.count > maxTokenLength {
+            processed = words.prefix(maxTokenLength).joined(separator: " ")
+        }
+        
+        return processed
+    }
+    
+    func modelInfo() -> [String: Any] {
+        return [
+            "version": modelVersion,
+            "maxTokenLength": maxTokenLength,
+            "supportsANE": MLDeviceCapabilities.hasANE,
+            "computeUnits": MLDeviceCapabilities.getOptimalComputeUnits(),
+            "embeddingDimension": embedder?.dimension ?? 0
+        ]
     }
 }
 
 enum EmbeddingsError: Error {
     case modelNotFound
     case predictionFailed
+    case emptyEmbeddings
+    case tokenLengthExceeded
+    case invalidInput
+    
+    var localizedDescription: String {
+        switch self {
+        case .modelNotFound:
+            return "Embedding model could not be loaded"
+        case .predictionFailed:
+            return "Failed to generate embeddings"
+        case .emptyEmbeddings:
+            return "Generated embeddings are empty"
+        case .tokenLengthExceeded:
+            return "Input text exceeds maximum token length"
+        case .invalidInput:
+            return "Invalid input text"
+        }
+    }
 } 

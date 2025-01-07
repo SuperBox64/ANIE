@@ -7,7 +7,7 @@ enum ChatError: Error {
     case decodingError(Error)
 }
 
-class LLMModelHandler {
+class LLMModelHandler: ChatGPTClient {
     private let session = URLSession.shared
     private var apiKey: String
     private var baseURL: String
@@ -30,18 +30,17 @@ class LLMModelHandler {
         self.baseURL = baseURL
     }
     
-    func generateResponse(for input: String) async throws -> String {
+    func generateResponse(for message: String) async throws -> String {
         let url = URL(string: "\(baseURL)/chat/completions")!
         
         // Add user's message to history
-        conversationHistory.append(ChatMessage(content: input, role: "user"))
+        conversationHistory.append(ChatMessage(content: message, role: "user"))
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        // Convert conversation history to dictionary array
         let messages = conversationHistory.map { [
             "role": $0.role,
             "content": $0.content
@@ -55,34 +54,22 @@ class LLMModelHandler {
         
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
-        do {
-            let (data, urlResponse) = try await session.data(for: request)
-            
-            guard let httpResponse = urlResponse as? HTTPURLResponse else {
-                throw ChatError.networkError(URLError(.badServerResponse))
-            }
-            
-            guard (200...299).contains(httpResponse.statusCode) else {
-                throw ChatError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8) ?? "Unknown error")
-            }
-            
-            do {
-                let chatResponse = try JSONDecoder().decode(ChatResponse.self, from: data)
-                if let responseContent = chatResponse.choices.first?.message.content {
-                    // Add AI's response to history
-                    conversationHistory.append(ChatMessage(content: responseContent, role: "assistant"))
-                    return responseContent
-                }
-                return "No response"
-            } catch {
-                throw ChatError.decodingError(error)
-            }
-        } catch {
-            if let chatError = error as? ChatError {
-                throw chatError
-            }
-            throw ChatError.networkError(error)
+        let (data, urlResponse) = try await session.data(for: request)
+        
+        guard let httpResponse = urlResponse as? HTTPURLResponse else {
+            throw ChatError.networkError(URLError(.badServerResponse))
         }
+        
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw ChatError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8) ?? "Unknown error")
+        }
+        
+        let chatResponse = try JSONDecoder().decode(ChatResponse.self, from: data)
+        if let responseContent = chatResponse.choices.first?.message.content {
+            conversationHistory.append(ChatMessage(content: responseContent, role: "assistant"))
+            return responseContent
+        }
+        return "No response"
     }
     
     func clearHistory() {
