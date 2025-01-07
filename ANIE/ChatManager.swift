@@ -53,7 +53,7 @@ class ChatManager {
         }
         
         // Regular processing flow when LocalAI is disabled
-        if preprocessor.shouldCache(message) {
+        if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) {
             await MainActor.run {
                 print("🔍 Checking cache for: \(message)")
             }
@@ -70,9 +70,16 @@ class ChatManager {
             
             // Generate new response and cache it
             let response = try await apiClient.generateResponse(for: message)
-            try cache.cacheResponse(query: message, response: response)
-            await MainActor.run {
-                print("📥 Cached new response")
+            // Only cache if it's not an ML-related query
+            if !preprocessor.isMLRelatedQuery(message) {
+                try cache.cacheResponse(query: message, response: response)
+                await MainActor.run {
+                    print("📥 Cached new response")
+                }
+            } else {
+                await MainActor.run {
+                    print("🚫 Skipping cache for ML-related response")
+                }
             }
             return response
         }
