@@ -34,32 +34,46 @@ class ChatManager {
         
         // Check if we should use local processing
         if useLocalAI {
-            print("🧠 Using LocalAI for query: \(message)")
+            await MainActor.run {
+                print("🧠 Using LocalAI for query: \(message)")
+            }
             if preprocessor.isMLRelatedQuery(message) {
                 let response = try await localAI.generateResponse(for: message)
-                print("🧠 LocalAI generated response")
+                await MainActor.run {
+                    print("🧠 LocalAI generated response")
+                }
                 return response + "\n[Using LocalAI]"
             } else {
-                print("⚠️ Local AI enabled - skipping cache")
+                await MainActor.run {
+                    print("⚠️ Local AI enabled - skipping cache")
+                }
                 let response = try await apiClient.generateResponse(for: message)
-                return response + "\n[Using LocalAI]"  // Add LocalAI tag even for regular responses
+                return response + "\n[Using LocalAI]"
             }
         }
         
         // Regular processing flow when LocalAI is disabled
         if preprocessor.shouldCache(message) {
-            print("🔍 Checking cache for: \(message)")
+            await MainActor.run {
+                print("🔍 Checking cache for: \(message)")
+            }
             if let cachedResponse = try cache.findSimilarResponse(for: message) {
-                print("✨ Cache hit! Using cached response")
+                await MainActor.run {
+                    print("✨ Cache hit! Using cached response")
+                }
                 let response = cachedResponse + "\n[Retrieved using BERT]"
                 return response
             }
-            print("💫 No cache hit, generating new response")
+            await MainActor.run {
+                print("💫 No cache hit, generating new response")
+            }
             
             // Generate new response and cache it
             let response = try await apiClient.generateResponse(for: message)
             try cache.cacheResponse(query: message, response: response)
-            print("📥 Cached new response")
+            await MainActor.run {
+                print("📥 Cached new response")
+            }
             return response
         }
         

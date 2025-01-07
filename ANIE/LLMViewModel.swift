@@ -103,6 +103,7 @@ class LLMViewModel: ObservableObject {
         ScrollManager.shared.scrollToBottom()
     }
     
+    @MainActor
     func processUserInput(_ input: String) async {
         guard currentSession != nil else { return }
         
@@ -113,7 +114,6 @@ class LLMViewModel: ObservableObject {
         addMessage(message)
         
         do {
-            // Process through ChatManager to handle ML commands
             let response = try await chatManager.processMessage(input)
             let usedBERT = response.contains("[Retrieved using BERT]")
             let usedLocalAI = response.contains("[Using LocalAI]")
@@ -128,17 +128,13 @@ class LLMViewModel: ObservableObject {
                 usedLocalAI: usedLocalAI
             )
             
-            await MainActor.run {
-                addMessage(responseMessage)
-                isProcessing = false
-                processingProgress = 1.0
-            }
+            addMessage(responseMessage)
+            isProcessing = false
+            processingProgress = 1.0
         } catch {
             print("Error processing message: \(error)")
-            await MainActor.run {
-                isProcessing = false
-                processingProgress = 1.0
-            }
+            isProcessing = false
+            processingProgress = 1.0
         }
     }
     
