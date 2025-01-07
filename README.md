@@ -6,13 +6,8 @@
 - Takes advantage of Apple Neural Engine
 - Does not cache computer programming calls
 
-!ml status
+<img width="622" alt="image" src="https://github.com/user-attachments/assets/607c1423-2b42-4cf5-9845-5da3657f18c1" />
 
-show status
-
-!ml clear
-
-clear cache
 
 
 
