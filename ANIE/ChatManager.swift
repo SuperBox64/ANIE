@@ -30,24 +30,40 @@ class ChatManager {
             return handleMLCommand(message.lowercased())
         }
         
+        let useLocalAI = UserDefaults.standard.bool(forKey: "useLocalAI")
+        
         // Check if we should use local processing
-        if UserDefaults.standard.bool(forKey: "useLocalAI") && 
-           preprocessor.isMLRelatedQuery(message) {
+        if useLocalAI && preprocessor.isMLRelatedQuery(message) {
             print("📝 Using Local AI for query: \(message)")
             let response = try await localAI.generateResponse(for: message)
-            return response  // No emoji prefix
+            return response
         }
         
-        // Regular processing flow
-        if preprocessor.shouldCache(message) {
+        // Regular processing flow - skip cache if Local AI is enabled
+        if !useLocalAI && preprocessor.shouldCache(message) {
+            print("🔍 Checking cache for: \(message)")
             if let cachedResponse = try cache.findSimilarResponse(for: message) {
+                print("✨ Cache hit! Using cached response")
                 let response = cachedResponse + "\n[Retrieved using BERT]"
-                return response  // No emoji prefix
+                return response
+            }
+            print("💫 No cache hit, generating new response")
+            
+            // Generate new response and cache it
+            let response = try await apiClient.generateResponse(for: message)
+            try cache.cacheResponse(query: message, response: response)
+            print("📥 Cached new response")
+            return response
+        } else {
+            if useLocalAI {
+                print("⚠️ Local AI enabled - skipping cache")
+            } else {
+                print("⚠️ Message not eligible for caching")
             }
         }
         
         let response = try await apiClient.generateResponse(for: message)
-        return response  // No emoji prefix
+        return response
     }
     
     private func handleMLCommand(_ command: String) -> String {

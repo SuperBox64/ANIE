@@ -43,6 +43,7 @@ class MessagePreprocessor {
         
         // Skip caching for ML-related queries
         if mlKeywords.contains(where: { lowercased.contains($0) }) {
+            print("🚫 Skipping cache - ML related query")
             return false
         }
         
@@ -50,9 +51,11 @@ class MessagePreprocessor {
         if message.contains("{") || message.contains("}") ||
            message.contains("func ") || message.contains("class ") ||
            message.contains("struct ") || message.contains("import ") {
+            print("🚫 Skipping cache - Programming related query")
             return false
         }
         
+        print("✅ Message eligible for caching")
         return true
     }
     
