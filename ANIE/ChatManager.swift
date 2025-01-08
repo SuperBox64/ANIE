@@ -32,60 +32,60 @@ class ChatManager {
         
         let useLocalAI = UserDefaults.standard.bool(forKey: "useLocalAI")
         
-        // Check if we should use local processing
+        // Local AI mode - all processing happens locally
         if useLocalAI {
             await MainActor.run {
                 print("🧠 Using LocalAI for query: \(message)")
             }
-            if preprocessor.isMLRelatedQuery(message) {
-                let response = try await localAI.generateResponse(for: message)
-                await MainActor.run {
-                    print("🧠 LocalAI generated response")
-                }
-                return response + "\n[Using LocalAI]"
-            } else {
-                await MainActor.run {
-                    print("⚠️ Local AI enabled - skipping cache")
-                }
-                let response = try await apiClient.generateResponse(for: message)
-                return response + "\n[Using LocalAI]"
+            let response = try await localAI.generateResponse(for: message)
+            await MainActor.run {
+                print("🧠 LocalAI generated response")
             }
+            return response + "\n[Using LocalAI]"
         }
         
         // Regular processing flow when LocalAI is disabled
-        if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) {
-            await MainActor.run {
-                print("🔍 Checking cache for: \(message)")
-            }
-            if let cachedResponse = try cache.findSimilarResponse(for: message) {
+        do {
+            // Try cache first
+            if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) {
                 await MainActor.run {
-                    print("✨ Cache hit! Using cached response")
+                    print("🔍 Checking cache for: \(message)")
                 }
-                let response = cachedResponse + "\n[Retrieved using BERT]"
-                return response
-            }
-            await MainActor.run {
-                print("💫 No cache hit, generating new response")
+                if let cachedResponse = try cache.findSimilarResponse(for: message) {
+                    await MainActor.run {
+                        print("✨ Cache hit! Using cached response")
+                    }
+                    return cachedResponse + "\n[Retrieved using BERT]"
+                }
+                await MainActor.run {
+                    print("💫 No cache hit, generating new response")
+                }
             }
             
-            // Generate new response and cache it
+            // Try API
             let response = try await apiClient.generateResponse(for: message)
-            // Only cache if it's not an ML-related query
-            if !preprocessor.isMLRelatedQuery(message) {
+            
+            // Cache if appropriate
+            if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) {
                 try cache.cacheResponse(query: message, response: response)
                 await MainActor.run {
                     print("📥 Cached new response")
                 }
-            } else {
-                await MainActor.run {
-                    print("🚫 Skipping cache for ML-related response")
-                }
             }
+            
             return response
+            
+        } catch let error as NSError {
+            // If network is offline, fallback to local AI
+            if error.domain == NSURLErrorDomain && error.code == NSURLErrorNotConnectedToInternet {
+                await MainActor.run {
+                    print("🌐 Network offline, falling back to Local AI")
+                }
+                let response = try await localAI.generateResponse(for: message)
+                return response + "\n[Using LocalAI - Network Offline]"
+            }
+            throw error
         }
-        
-        let response = try await apiClient.generateResponse(for: message)
-        return response
     }
     
     private func handleMLCommand(_ command: String) -> String {

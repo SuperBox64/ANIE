@@ -80,7 +80,7 @@ struct MessageView: View {
                             if block.isCode {
                                 Text(block.content)
                                     .font(.system(.body, design: .monospaced))
-                                    .foregroundColor(message.isUser ? .white : .primary)
+                                    .foregroundColor(.white)
                                     .padding(.horizontal)
                                     .padding(.top, 4)
                             } else {
