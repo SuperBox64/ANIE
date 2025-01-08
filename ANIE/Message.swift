@@ -7,14 +7,16 @@ struct Message: Identifiable, Codable, Equatable {
     let timestamp: Date
     let usedBERT: Bool
     let usedLocalAI: Bool
+    let imageData: Data?
     
-    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date(), usedBERT: Bool = false, usedLocalAI: Bool = false) {
+    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date(), usedBERT: Bool = false, usedLocalAI: Bool = false, imageData: Data? = nil) {
         self.id = id
         self.content = content
         self.isUser = isUser
         self.timestamp = timestamp
         self.usedBERT = usedBERT
         self.usedLocalAI = usedLocalAI
+        self.imageData = imageData
     }
     
     // Coding keys
@@ -25,6 +27,7 @@ struct Message: Identifiable, Codable, Equatable {
         case timestamp
         case usedBERT
         case usedLocalAI
+        case imageData
     }
     
     // Implement custom decoding
@@ -36,6 +39,7 @@ struct Message: Identifiable, Codable, Equatable {
         timestamp = try container.decode(Date.self, forKey: .timestamp)
         usedBERT = try container.decodeIfPresent(Bool.self, forKey: .usedBERT) ?? false
         usedLocalAI = try container.decodeIfPresent(Bool.self, forKey: .usedLocalAI) ?? false
+        imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
     }
     
     // Implement custom encoding
@@ -47,6 +51,7 @@ struct Message: Identifiable, Codable, Equatable {
         try container.encode(timestamp, forKey: .timestamp)
         try container.encode(usedBERT, forKey: .usedBERT)
         try container.encode(usedLocalAI, forKey: .usedLocalAI)
+        try container.encodeIfPresent(imageData, forKey: .imageData)
     }
     
     // Equatable conformance
@@ -56,6 +61,7 @@ struct Message: Identifiable, Codable, Equatable {
         lhs.isUser == rhs.isUser &&
         lhs.timestamp == rhs.timestamp &&
         lhs.usedBERT == rhs.usedBERT &&
-        lhs.usedLocalAI == rhs.usedLocalAI
+        lhs.usedLocalAI == rhs.usedLocalAI &&
+        lhs.imageData == rhs.imageData
     }
 } 

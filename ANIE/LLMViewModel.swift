@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 //import CoreML
 
 @MainActor
@@ -111,6 +112,17 @@ class LLMViewModel: ObservableObject {
         isProcessing = true
         processingProgress = 0.0
         
+        // Check if the input is an image path
+        if input.starts(with: "![") && input.contains("](") {
+            let imageData = extractImageData(from: input)
+            let message = Message(content: input, isUser: true, imageData: imageData)
+            addMessage(message)
+            
+            isProcessing = false
+            processingProgress = 1.0
+            return
+        }
+        
         let message = Message(content: input, isUser: true)
         addMessage(message)
         
@@ -137,6 +149,25 @@ class LLMViewModel: ObservableObject {
             isProcessing = false
             processingProgress = 1.0
         }
+    }
+    
+    private func extractImageData(from input: String) -> Data? {
+        // Extract image path from markdown format: ![Alt text](path)
+        let pattern = #"\!\[.*\]\((.*)\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: input, range: NSRange(input.startIndex..., in: input)),
+              let pathRange = Range(match.range(at: 1), in: input) else {
+            return nil
+        }
+        
+        let imagePath = String(input[pathRange])
+        
+        // Try to load the image from the path
+        if let image = NSImage(contentsOfFile: imagePath) {
+            return image.tiffRepresentation
+        }
+        
+        return nil
     }
     
     func clearSessionHistory(_ sessionId: UUID) {

@@ -4,8 +4,21 @@ import AppKit
 struct MessageView: View {
     let message: Message
     @State private var copiedIndex: Int?
-    @State private var isHovering = false
     @State private var isCopied = false
+    
+    private func formatMarkdown(_ text: String) -> AttributedString {
+        var attributedString = try? AttributedString(markdown: text, options: .init(
+            allowsExtendedAttributes: true,
+            interpretedSyntax: .inlineOnlyPreservingWhitespace
+        ))
+        
+        // If markdown parsing fails, fallback to plain text
+        if attributedString == nil {
+            attributedString = AttributedString(text)
+        }
+        
+        return attributedString ?? AttributedString(text)
+    }
     
     var body: some View {
         HStack(alignment: .top) {
@@ -34,12 +47,23 @@ struct MessageView: View {
                 let codeBlocks = extractCodeBlocks(from: message.content)
                 
                 if codeBlocks.isEmpty {
-                    // Regular message with copy icon
+                    // Regular message with markdown and copy icon
                     VStack(alignment: .trailing, spacing: 0) {
-                        Text(message.content)
+                        Text(formatMarkdown(message.content))
+                            .textSelection(.enabled)
                             .padding(.horizontal)
                             .padding(.top, 4)
                             .padding(.bottom, 7)
+                        
+                        if let imageData = message.imageData,
+                           let nsImage = NSImage(data: imageData) {
+                            Image(nsImage: nsImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxHeight: 300)
+                                .padding(.horizontal)
+                                .padding(.bottom, 7)
+                        }
                         
                         copyButton(for: message.content)
                             .padding(.trailing, 3)
@@ -47,16 +71,21 @@ struct MessageView: View {
                     }
                     .background(message.isUser ? Color.blue : Color.gray.opacity(0.2))
                     .cornerRadius(11)
-                    .frame(maxWidth: 600, alignment: message.isUser ? .trailing : .leading)
+                    .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
                 } else {
-                    // Code blocks with copy icons
+                    // Mixed content with code blocks and markdown
                     ForEach(Array(codeBlocks.enumerated()), id: \.offset) { index, block in
                         VStack(alignment: .trailing, spacing: 0) {
-                            Text(block.content)
-                                .padding(.horizontal)
-                                .padding(.top, 4)
-                                .padding(.bottom, 7)
-                                .font(block.isCode ? .system(.body, design: .monospaced) : .body)
+                            if block.isCode {
+                                Text(block.content)
+                                    .font(.system(.body, design: .monospaced))
+                                    .padding(.horizontal)
+                                    .padding(.top, 4)
+                            } else {
+                                Text(formatMarkdown(block.content))
+                                    .padding(.horizontal)
+                                    .padding(.top, 4)
+                            }
                             
                             copyButton(for: block.content, index: index)
                                 .padding(.trailing, 3)
@@ -64,7 +93,22 @@ struct MessageView: View {
                         }
                         .background(block.isCode ? Color.black.opacity(0.8) : (message.isUser ? Color.blue : Color.gray.opacity(0.2)))
                         .cornerRadius(11)
-                        .frame(maxWidth: 600, alignment: message.isUser ? .trailing : .leading)
+                        .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
+                    }
+                    
+                    if let imageData = message.imageData,
+                       let nsImage = NSImage(data: imageData) {
+                        VStack(alignment: .trailing, spacing: 0) {
+                            Image(nsImage: nsImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxHeight: 300)
+                                .padding(.horizontal)
+                                .padding(.vertical, 7)
+                        }
+                        .background(message.isUser ? Color.blue : Color.gray.opacity(0.2))
+                        .cornerRadius(11)
+                        .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
                     }
                 }
             }
@@ -111,13 +155,6 @@ struct MessageView: View {
                     .foregroundColor(isCopiedState ? Color.green : .white)
             }
             .contentShape(Rectangle())  // Make entire area clickable
-            .onHover { hovering in
-                if hovering {
-                    NSCursor.pointingHand.push()
-                } else {
-                    NSCursor.pop()
-                }
-            }
         }
         .buttonStyle(PlainButtonStyle())
     }
