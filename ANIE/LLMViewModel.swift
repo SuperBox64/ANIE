@@ -12,7 +12,7 @@ class LLMViewModel: ObservableObject {
     private let modelHandler = LLMModelHandler()
     private let sessionsKey = "chatSessions"
     private let credentialsManager = CredentialsManager()
-    private let chatManager: ChatManager
+    private var chatManager: ChatManager
     
     var currentSession: ChatSession? {
         get {
@@ -182,6 +182,18 @@ class LLMViewModel: ObservableObject {
     func refreshCredentials() {
         if let credentials = credentialsManager.getCredentials() {
             modelHandler.updateCredentials(apiKey: credentials.apiKey, baseURL: credentials.baseURL)
+            
+            // Reinitialize chat manager with updated model handler
+            let preprocessor = MessagePreprocessor()
+            self.chatManager = ChatManager(
+                preprocessor: preprocessor,
+                apiClient: modelHandler
+            )
+            
+            // Restore conversation state if there's an active session
+            if let session = currentSession {
+                modelHandler.restoreConversation(from: session.messages)
+            }
         }
     }
 } 

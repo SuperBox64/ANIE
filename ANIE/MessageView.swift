@@ -51,6 +51,7 @@ struct MessageView: View {
                     VStack(alignment: .trailing, spacing: 0) {
                         Text(formatMarkdown(message.content))
                             .textSelection(.enabled)
+                            .foregroundColor(message.isUser ? .white : .primary)
                             .padding(.horizontal)
                             .padding(.top, 4)
                             .padding(.bottom, 7)
@@ -79,10 +80,12 @@ struct MessageView: View {
                             if block.isCode {
                                 Text(block.content)
                                     .font(.system(.body, design: .monospaced))
+                                    .foregroundColor(message.isUser ? .white : .primary)
                                     .padding(.horizontal)
                                     .padding(.top, 4)
                             } else {
                                 Text(formatMarkdown(block.content))
+                                    .foregroundColor(message.isUser ? .white : .primary)
                                     .padding(.horizontal)
                                     .padding(.top, 4)
                             }
