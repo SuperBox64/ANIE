@@ -38,10 +38,8 @@ class LLMViewModel: ObservableObject {
     init() {
         // Initialize dependencies
         let preprocessor = MessagePreprocessor()
-        let cache = ResponseCache()
         self.chatManager = ChatManager(
             preprocessor: preprocessor,
-            cache: cache,
             apiClient: modelHandler
         )
         

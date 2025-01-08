@@ -177,22 +177,29 @@ struct ChatSidebarView: View {
             .padding(.vertical, 8)
             
             // Sessions list
-            List(viewModel.sessions, selection: $viewModel.selectedSessionId) { session in
+            List(viewModel.sessions) { session in
                 Button {
-                    if viewModel.selectedSessionId != session.id {
-                        viewModel.selectSession(id: session.id)
-                    }
+                    // Empty action since we're using gesture
                 } label: {
                     Text(session.subject)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(session.id == viewModel.selectedSessionId ? 
+                                    Color.blue : Color.clear)
+                        )
+                        .foregroundColor(session.id == viewModel.selectedSessionId ? .white : .primary)
                 }
                 .buttonStyle(PlainButtonStyle())
                 .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
                 .listRowSeparator(.hidden)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    viewModel.selectSession(id: session.id)
+                }
             }
         }
         .frame(width: 200)

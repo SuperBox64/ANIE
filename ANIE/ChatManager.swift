@@ -12,9 +12,9 @@ class ChatManager {
     private let apiClient: ChatGPTClient
     private let localAI: LocalAIHandler
     
-    init(preprocessor: MessagePreprocessor, cache: ResponseCache, apiClient: ChatGPTClient) {
+    init(preprocessor: MessagePreprocessor, apiClient: ChatGPTClient) {
         self.preprocessor = preprocessor
-        self.cache = cache
+        self.cache = ResponseCache.shared
         self.apiClient = apiClient
         self.localAI = LocalAIHandler()
         

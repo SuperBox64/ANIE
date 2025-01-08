@@ -4,12 +4,11 @@ import NaturalLanguage
 class LocalAIHandler {
     private let tokenizer: NLTokenizer
     private let embeddingGenerator: EmbeddingsGenerator?
-    private let cache: ResponseCache
+    private lazy var cache: ResponseCache = ResponseCache.shared
     
     init() {
         self.tokenizer = NLTokenizer(unit: .word)
         self.embeddingGenerator = EmbeddingsService.shared.generator
-        self.cache = ResponseCache()
     }
     
     func generateResponse(for query: String) async throws -> String {

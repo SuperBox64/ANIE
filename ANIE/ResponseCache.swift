@@ -8,6 +8,8 @@ struct CachedResponse: Codable {
 }
 
 class ResponseCache {
+    static let shared = ResponseCache()
+    
     private var cache: [CachedResponse] = []
     private let embeddings: EmbeddingsGenerator?
     private let similarityThreshold: Float = 0.8
@@ -18,7 +20,7 @@ class ResponseCache {
         return similarityThreshold
     }
     
-    init() {
+    private init() {
         self.embeddings = EmbeddingsService.shared.generator
         loadCache()
     }
