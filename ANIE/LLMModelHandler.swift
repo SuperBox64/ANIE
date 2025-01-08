@@ -31,9 +31,30 @@ class LLMModelHandler: ChatGPTClient {
     }
     
     init() {
-        self.apiKey = OpenAIConfig.apiKey
-        self.baseURL = OpenAIConfig.baseURL
+        self.apiKey = LLMAIConfig.apiKey
+        self.baseURL = LLMAIConfig.baseURL
         conversationHistory.append(systemPrompt)
+        
+        // Add observer for credential changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(credentialsDidChange),
+            name: Notification.Name("CredentialsDidChange"),
+            object: nil
+        )
+    }
+    
+    @objc private func credentialsDidChange(_ notification: Notification) {
+        if let userInfo = notification.userInfo,
+           let apiKey = userInfo["apiKey"] as? String,
+           let baseURL = userInfo["baseURL"] as? String {
+            self.apiKey = apiKey
+            self.baseURL = baseURL
+        }
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     func updateCredentials(apiKey: String, baseURL: String) {
@@ -58,9 +79,9 @@ class LLMModelHandler: ChatGPTClient {
         ] }
         
         let body: [String: Any] = [
-            "model": "gpt-3.5-turbo",
+            "model": LLMConfig.model,
             "messages": messages,
-            "temperature": 0.7
+            "temperature": LLMConfig.temperature
         ]
         
         request.httpBody = try JSONSerialization.data(withJSONObject: body)

@@ -4,17 +4,30 @@ struct ConfigurationView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var credentialsManager = CredentialsManager()
     @State private var apiKey = ""
-    @State private var baseURL = "https://api.openai.com/v1"
+    @State private var baseURL = ""
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @Binding var shouldRefresh: Bool
     @AppStorage("useLocalAI") private var useLocalAI = false
+    @AppStorage("llm-model") private var model = "gpt-3.5-turbo"
+    @AppStorage("llm-temperature") private var temperature = 0.7
     
     private var redactedApiKey: String {
         if credentialsManager.isConfigured {
             return "[API Key Redacted]"
         }
         return ""
+    }
+    
+    private func loadExistingCredentials() {
+        if let credentials = credentialsManager.getCredentials() {
+            if baseURL.isEmpty {
+                baseURL = credentials.baseURL
+            }
+            if apiKey.isEmpty {
+                apiKey = credentialsManager.isConfigured ? "[API Key Redacted]" : ""
+            }
+        }
     }
     
     var body: some View {
@@ -43,34 +56,64 @@ struct ConfigurationView: View {
                 .fontWeight(.bold)
             
             VStack(alignment: .leading, spacing: 20) {
-                Text("OpenAI API Configuration")
+                Text("LLM API Configuration")
                     .font(.headline)
                 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("API Key")
                         .foregroundColor(.secondary)
-                    SecureField(credentialsManager.isConfigured ? "[API Key Redacted]" : "sk-...", text: $apiKey)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 400)
+                    if credentialsManager.isConfigured {
+                        SecureField("[API Key Redacted]", text: $apiKey)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 400)
+                            .onChange(of: apiKey) { newValue in
+                                // Only update if user starts typing
+                                if !newValue.isEmpty && newValue != "[API Key Redacted]" {
+                                    // Clear the placeholder text when user starts typing
+                                    if apiKey == "[API Key Redacted]" {
+                                        apiKey = ""
+                                    }
+                                }
+                            }
+                    } else {
+                        SecureField("Enter API Key", text: $apiKey)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 400)
+                    }
                 }
                 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Base URL")
                         .foregroundColor(.secondary)
-                    TextField("Base URL", text: $baseURL)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 400)
+                    TextField(
+                        "e.g., https://api.example.com/v1",
+                        text: $baseURL
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 400)
                 }
                 
                 Divider()
                 
-                // VStack(alignment: .leading, spacing: 8) {
-                //     Text("ML Configuration")
-                //         .font(.headline)
-                    
-                //     Toggle("Use Local ML Processing", isOn: $useLocalAI)
-                //         .help("When enabled, uses local ML models for AI/ML related queries")
-                // }
+                Text("Model Configuration")
+                    .font(.headline)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Model")
+                        .foregroundColor(.secondary)
+                    TextField("Model name", text: $model)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 400)
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Temperature (\(temperature, specifier: "%.1f"))")
+                        .foregroundColor(.secondary)
+                    Slider(value: $temperature, in: 0...2) {
+                        Text("Temperature")
+                    }
+                    .frame(width: 400)
+                }
                 
                 HStack(spacing: 20) {
                     Button("Cancel") {
@@ -80,7 +123,15 @@ struct ConfigurationView: View {
                     
                     Button("Save Configuration") {
                         do {
-                            try credentialsManager.saveCredentials(apiKey: apiKey, baseURL: baseURL)
+                            guard !baseURL.isEmpty else {
+                                alertMessage = "Base URL cannot be empty"
+                                showingAlert = true
+                                return
+                            }
+                            
+                            let cleanBaseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                            
+                            try credentialsManager.saveCredentials(apiKey: apiKey, baseURL: cleanBaseURL)
                             shouldRefresh = true
                             dismiss()
                         } catch {
@@ -95,7 +146,7 @@ struct ConfigurationView: View {
                         Button("Clear Credentials") {
                             credentialsManager.clearCredentials()
                             apiKey = ""
-                            baseURL = "https://api.openai.com/v1"
+                            baseURL = ""
                             dismiss()
                         }
                         .foregroundColor(.red)
@@ -116,6 +167,9 @@ struct ConfigurationView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text(alertMessage)
+        }
+        .onAppear {
+            loadExistingCredentials()
         }
     }
 } 

@@ -9,14 +9,22 @@ class CredentialsManager: ObservableObject {
     }
     
     private let keychainHelper = KeychainHelper.standard
-    private let apiKeyKey = "openai-api-key"
-    private let baseURLKey = "openai-base-url"
+    private let apiKeyKey = "llm-api-key"
+    private let baseURLKey = "llm-base-url"
     
     init() {
         self.isConfigured = UserDefaults.standard.bool(forKey: "isConfigured")
     }
     
     func saveCredentials(apiKey: String, baseURL: String) throws {
+        // Validate inputs
+        guard !baseURL.isEmpty else {
+            throw CredentialError.invalidBaseURL
+        }
+        
+        // Clear old credentials first
+        clearCredentials()
+        
         // Generate a new key for encryption
         let key = SymmetricKey(size: .bits256)
         
@@ -37,7 +45,16 @@ class CredentialsManager: ObservableObject {
             keychainHelper.save(sealedBaseURL, service: baseURLKey, account: "ANIE")
         }
         
+        print("Debug: Saving baseURL: \(baseURL)") // Add debug print
+        
         isConfigured = true
+        
+        // Update active LLMModelHandler instance with new credentials
+        NotificationCenter.default.post(
+            name: Notification.Name("CredentialsDidChange"),
+            object: nil,
+            userInfo: ["apiKey": apiKey, "baseURL": baseURL]
+        )
     }
     
     func getCredentials() -> (apiKey: String, baseURL: String)? {
@@ -45,6 +62,7 @@ class CredentialsManager: ObservableObject {
               let keyData = Data(base64Encoded: keyString),
               let apiKeyData = keychainHelper.read(service: apiKeyKey, account: "ANIE"),
               let baseURLData = keychainHelper.read(service: baseURLKey, account: "ANIE") else {
+            print("Debug: Failed to read credentials")
             return nil
         }
         
@@ -52,9 +70,11 @@ class CredentialsManager: ObservableObject {
         
         guard let apiKey = try? decrypt(sealed: apiKeyData, using: key),
               let baseURL = try? decrypt(sealed: baseURLData, using: key) else {
+            print("Debug: Failed to decrypt credentials")
             return nil
         }
         
+        print("Debug: Retrieved baseURL: \(baseURL)")
         return (apiKey, baseURL)
     }
     
@@ -75,5 +95,10 @@ class CredentialsManager: ObservableObject {
         let sealedBox = try AES.GCM.SealedBox(combined: sealed)
         let decryptedData = try AES.GCM.open(sealedBox, using: key)
         return String(data: decryptedData, encoding: .utf8)!
+    }
+    
+    // Add error enum
+    enum CredentialError: Error {
+        case invalidBaseURL
     }
 } 
