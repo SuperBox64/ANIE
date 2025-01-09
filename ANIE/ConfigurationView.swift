@@ -171,5 +171,8 @@ struct ConfigurationView: View {
         .onAppear {
             loadExistingCredentials()
         }
+        .onChange(of: model) { oldValue, newValue in
+            UserDefaults.standard.set(newValue, forKey: "selectedModel")
+        }
     }
 } 
