@@ -9,72 +9,25 @@ struct MessageView: View {
     private func formatSwiftCode(_ code: String) -> AttributedString {
         var result = AttributedString(code)
         
-        // Define Xcode's exact colors sampled from the reference image
-        let keywordColor = Color(nsColor: NSColor(red: 249/255, green: 38/255, blue: 114/255, alpha: 1.0))      // Hot pink for keywords
-        let typeColor = Color(nsColor: NSColor(red: 154/255, green: 109/255, blue: 255/255, alpha: 1.0))        // Purple for Int/types
-        let functionCallColor = Color(nsColor: NSColor(red: 68/255, green: 201/255, blue: 222/255, alpha: 1.0))  // Teal for function calls
-        let stringColor = Color(nsColor: NSColor(red: 255/255, green: 112/255, blue: 77/255, alpha: 1.0))       // Coral red for strings
-        let numberColor = Color(nsColor: NSColor(red: 255/255, green: 216/255, blue: 102/255, alpha: 1.0))      // Golden yellow for numbers
-        let operatorColor = Color(nsColor: NSColor(red: 68/255, green: 201/255, blue: 222/255, alpha: 1.0))     // Teal for operators
-        let printColor = Color(nsColor: NSColor(red: 154/255, green: 109/255, blue: 255/255, alpha: 1.0))       // Purple for print
-        let parameterColor = Color(nsColor: NSColor(red: 248/255, green: 248/255, blue: 242/255, alpha: 1.0))   // Off-white for parameters
-        let defaultColor = Color(nsColor: NSColor(red: 248/255, green: 248/255, blue: 242/255, alpha: 1.0))     // Off-white for default text
-        let commentColor = Color(nsColor: NSColor(red: 117/255, green: 113/255, blue: 94/255, alpha: 1.0))      // Gray for // comments
-        let docCommentColor = Color(nsColor: NSColor(red: 98/255, green: 95/255, blue: 78/255, alpha: 1.0))     // Darker gray for /// comments
-        let markCommentColor = Color(nsColor: NSColor(red: 130/255, green: 127/255, blue: 107/255, alpha: 1.0)) // Lighter gray for MARK comments
+        // Define Xcode's exact colors using system colors where possible
+        let keywordColor = Color(nsColor: NSColor.systemPink)                                                  // Pink for keywords
+        let typeColor = Color(nsColor: NSColor.systemPurple)                                                   // Purple for Int/types
+        let functionCallColor = Color(nsColor: NSColor.systemTeal)                                             // Teal for function calls
+        let stringColor = Color(nsColor: NSColor.systemRed)                                                    // Red for strings
+        let numberColor = Color(nsColor: NSColor(red: 252/255, green: 186/255, blue: 3/255, alpha: 1.0))      // Darker yellow for numbers
+        let operatorColor = Color(nsColor: NSColor.systemTeal)                                                 // Teal for operators
+        let printColor = Color(nsColor: NSColor.systemPurple)                                                  // Purple for print
+        let parameterColor = Color(nsColor: NSColor.textColor)                                                 // System text color for parameters
+        let defaultColor = Color(nsColor: NSColor.textColor)                                                   // System text color for default text
+        let commentColor = Color(nsColor: NSColor.secondaryLabelColor)                                         // System gray for comments
+        let docCommentColor = Color(nsColor: NSColor.tertiaryLabelColor)                                      // Darker system gray for doc comments
+        let markCommentColor = Color(nsColor: NSColor.secondaryLabelColor)                                     // System gray for MARK comments
         
         // Set default text color
         result.foregroundColor = defaultColor
         
         let text = code as NSString
         let range = NSRange(location: 0, length: text.length)
-        
-        // Comments must be handled last to allow syntax highlighting of code before comments
-        let markPattern = "//\\s*MARK:.*$"
-        let docPattern = "///.*$"
-        let commentPattern = "//(?!/|\\s*MARK:).*$"
-        
-        // Apply all other syntax highlighting first...
-        
-        // Then handle comments last - only color from the slashes to the end of line
-        // MARK comments
-        if let regex = try? NSRegularExpression(pattern: markPattern, options: [.anchorsMatchLines]) {
-            let matches = regex.matches(in: code, range: range)
-            for match in matches.reversed() {
-                if let stringRange = Range(match.range, in: code),
-                   let attributedRange = Range(stringRange, in: result) {
-                    var commentAttr = AttributedString(String(code[stringRange]))
-                    commentAttr.foregroundColor = markCommentColor
-                    result.replaceSubrange(attributedRange, with: commentAttr)
-                }
-            }
-        }
-        
-        // Doc comments
-        if let regex = try? NSRegularExpression(pattern: docPattern, options: [.anchorsMatchLines]) {
-            let matches = regex.matches(in: code, range: range)
-            for match in matches.reversed() {
-                if let stringRange = Range(match.range, in: code),
-                   let attributedRange = Range(stringRange, in: result) {
-                    var commentAttr = AttributedString(String(code[stringRange]))
-                    commentAttr.foregroundColor = docCommentColor
-                    result.replaceSubrange(attributedRange, with: commentAttr)
-                }
-            }
-        }
-        
-        // Regular comments
-        if let regex = try? NSRegularExpression(pattern: commentPattern, options: [.anchorsMatchLines]) {
-            let matches = regex.matches(in: code, range: range)
-            for match in matches.reversed() {
-                if let stringRange = Range(match.range, in: code),
-                   let attributedRange = Range(stringRange, in: result) {
-                    var commentAttr = AttributedString(String(code[stringRange]))
-                    commentAttr.foregroundColor = commentColor
-                    result.replaceSubrange(attributedRange, with: commentAttr)
-                }
-            }
-        }
         
         // Keywords (pink)
         let keywords = ["func", "if", "else", "return", "let", "var"]
@@ -221,6 +174,50 @@ struct MessageView: View {
                         operatorAttr.foregroundColor = operatorColor
                         result.replaceSubrange(attributedRange, with: operatorAttr)
                     }
+                }
+            }
+        }
+        
+        // Comments must be handled last to allow syntax highlighting of code before comments
+        let markPattern = "//\\s*MARK:.*$"
+        let docPattern = "///.*$"
+        let commentPattern = "//(?!/|\\s*MARK:).*$"
+        
+        // MARK comments
+        if let regex = try? NSRegularExpression(pattern: markPattern, options: [.anchorsMatchLines]) {
+            let matches = regex.matches(in: code, range: range)
+            for match in matches.reversed() {
+                if let stringRange = Range(match.range, in: code),
+                   let attributedRange = Range(stringRange, in: result) {
+                    var commentAttr = AttributedString(String(code[stringRange]))
+                    commentAttr.foregroundColor = markCommentColor
+                    result.replaceSubrange(attributedRange, with: commentAttr)
+                }
+            }
+        }
+        
+        // Doc comments
+        if let regex = try? NSRegularExpression(pattern: docPattern, options: [.anchorsMatchLines]) {
+            let matches = regex.matches(in: code, range: range)
+            for match in matches.reversed() {
+                if let stringRange = Range(match.range, in: code),
+                   let attributedRange = Range(stringRange, in: result) {
+                    var commentAttr = AttributedString(String(code[stringRange]))
+                    commentAttr.foregroundColor = docCommentColor
+                    result.replaceSubrange(attributedRange, with: commentAttr)
+                }
+            }
+        }
+        
+        // Regular comments
+        if let regex = try? NSRegularExpression(pattern: commentPattern, options: [.anchorsMatchLines]) {
+            let matches = regex.matches(in: code, range: range)
+            for match in matches.reversed() {
+                if let stringRange = Range(match.range, in: code),
+                   let attributedRange = Range(stringRange, in: result) {
+                    var commentAttr = AttributedString(String(code[stringRange]))
+                    commentAttr.foregroundColor = commentColor
+                    result.replaceSubrange(attributedRange, with: commentAttr)
                 }
             }
         }
