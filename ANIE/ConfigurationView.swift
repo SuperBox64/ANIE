@@ -12,12 +12,12 @@ struct ConfigurationView: View {
     @AppStorage("llm-model") private var model = "gpt-3.5-turbo"
     @AppStorage("llm-temperature") private var temperature = 0.7
     
-    private var redactedApiKey: String {
-        if credentialsManager.isConfigured {
-            return "[API Key Redacted]"
-        }
-        return ""
-    }
+//    private var redactedApiKey: String {
+//        if credentialsManager.isConfigured {
+//            return "[API Key]"
+//        }
+//        return ""
+//    }
     
     private func loadExistingCredentials() {
         if let credentials = credentialsManager.getCredentials() {
@@ -25,7 +25,7 @@ struct ConfigurationView: View {
                 baseURL = credentials.baseURL
             }
             if apiKey.isEmpty {
-                apiKey = credentialsManager.isConfigured ? "[API Key Redacted]" : ""
+                apiKey = credentialsManager.isConfigured ? credentials.apiKey : ""
             }
         }
     }
