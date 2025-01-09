@@ -8,8 +8,9 @@ struct Message: Identifiable, Codable, Equatable {
     let usedBERT: Bool
     let usedLocalAI: Bool
     let imageData: Data?
+    let isError: Bool
     
-    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date(), usedBERT: Bool = false, usedLocalAI: Bool = false, imageData: Data? = nil) {
+    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date(), usedBERT: Bool = false, usedLocalAI: Bool = false, imageData: Data? = nil, isError: Bool = false) {
         self.id = id
         self.content = content
         self.isUser = isUser
@@ -17,6 +18,7 @@ struct Message: Identifiable, Codable, Equatable {
         self.usedBERT = usedBERT
         self.usedLocalAI = usedLocalAI
         self.imageData = imageData
+        self.isError = isError
     }
     
     // Coding keys
@@ -28,6 +30,7 @@ struct Message: Identifiable, Codable, Equatable {
         case usedBERT
         case usedLocalAI
         case imageData
+        case isError
     }
     
     // Implement custom decoding
@@ -40,6 +43,7 @@ struct Message: Identifiable, Codable, Equatable {
         usedBERT = try container.decodeIfPresent(Bool.self, forKey: .usedBERT) ?? false
         usedLocalAI = try container.decodeIfPresent(Bool.self, forKey: .usedLocalAI) ?? false
         imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
+        isError = try container.decodeIfPresent(Bool.self, forKey: .isError) ?? false
     }
     
     // Implement custom encoding
@@ -52,6 +56,7 @@ struct Message: Identifiable, Codable, Equatable {
         try container.encode(usedBERT, forKey: .usedBERT)
         try container.encode(usedLocalAI, forKey: .usedLocalAI)
         try container.encodeIfPresent(imageData, forKey: .imageData)
+        try container.encode(isError, forKey: .isError)
     }
     
     // Equatable conformance
@@ -62,6 +67,7 @@ struct Message: Identifiable, Codable, Equatable {
         lhs.timestamp == rhs.timestamp &&
         lhs.usedBERT == rhs.usedBERT &&
         lhs.usedLocalAI == rhs.usedLocalAI &&
-        lhs.imageData == rhs.imageData
+        lhs.imageData == rhs.imageData &&
+        lhs.isError == rhs.isError
     }
 } 

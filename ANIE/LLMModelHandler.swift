@@ -101,6 +101,16 @@ class LLMModelHandler: ChatGPTClient {
         }
     }
     
+    struct OpenAIError: Codable {
+        let error: ErrorDetails
+        
+        struct ErrorDetails: Codable {
+            let message: String
+            let type: String?
+            let code: String?
+        }
+    }
+    
     func generateResponse(for message: String) async throws -> String {
         let url = URL(string: "\(baseURL)/chat/completions")!
         
@@ -151,7 +161,11 @@ class LLMModelHandler: ChatGPTClient {
             throw ChatError.networkError(URLError(.badServerResponse))
         }
         
-        guard (200...299).contains(httpResponse.statusCode) else {
+        // Try to parse OpenAI error format first if status code indicates error
+        if !(200...299).contains(httpResponse.statusCode) {
+            if let errorResponse = try? JSONDecoder().decode(OpenAIError.self, from: data) {
+                throw ChatError.serverError(httpResponse.statusCode, errorResponse.error.message)
+            }
             throw ChatError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8) ?? "Unknown error")
         }
         

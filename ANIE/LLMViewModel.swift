@@ -215,13 +215,34 @@ class LLMViewModel: ObservableObject {
             )
             
             addMessage(responseMessage)
-            isProcessing = false
-            processingProgress = 1.0
         } catch {
             print("Error processing message: \(error)")
-            isProcessing = false
-            processingProgress = 1.0
+            
+            // Format error message
+            let errorMessage: String
+            switch error {
+            case let ChatError.serverError(code, message):
+                errorMessage = "Error (\(code)): \(message)"
+            case let ChatError.networkError(underlying):
+                errorMessage = "Network Error: \(underlying.localizedDescription)"
+            case ChatError.invalidURL:
+                errorMessage = "Error: Invalid API URL"
+            case let ChatError.decodingError(underlying):
+                errorMessage = "Error: Failed to process response - \(underlying.localizedDescription)"
+            default:
+                errorMessage = "Error: \(error.localizedDescription)"
+            }
+            
+            let responseMessage = Message(
+                content: errorMessage,
+                isUser: false,
+                isError: true
+            )
+            addMessage(responseMessage)
         }
+        
+        isProcessing = false
+        processingProgress = 1.0
     }
     
     private func extractImageData(from input: String) -> Data? {

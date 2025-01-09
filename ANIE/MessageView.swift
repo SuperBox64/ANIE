@@ -7,6 +7,13 @@ struct MessageView: View {
     @State private var isCopied = false
     
     private func formatMarkdown(_ text: String) -> AttributedString {
+        // Check if this is an error message (starts with "Error:" or contains specific error patterns)
+        if text.hasPrefix("Error:") || text.contains("API Error:") {
+            var errorAttr = AttributedString(text)
+            errorAttr.foregroundColor = .white
+            return errorAttr
+        }
+        
         // Split into code blocks and regular text
         let parts = text.components(separatedBy: "```")
         var result = AttributedString()
@@ -99,10 +106,24 @@ struct MessageView: View {
             }
             
             VStack(alignment: .leading) {
-                let codeBlocks = extractCodeBlocks(from: message.content)
-                
-                if codeBlocks.isEmpty {
-                    // Regular message with markdown and copy icon
+                if message.isError {
+                    // Error message - always red background with white text
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text(message.content)  // No markdown formatting for errors
+                            .textSelection(.enabled)
+                            .foregroundColor(.white)
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                        
+                        copyButton(for: message.content)
+                            .padding(.trailing, 3)
+                            .padding(.bottom, 3)
+                    }
+                    .background(Color.red)
+                    .cornerRadius(11)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    // Regular message with markdown formatting
                     VStack(alignment: .trailing, spacing: 0) {
                         Text(formatMarkdown(message.content))
                             .textSelection(.enabled)
@@ -111,16 +132,6 @@ struct MessageView: View {
                             .padding(.top, 4)
                             .padding(.bottom, 7)
                         
-                        if let imageData = message.imageData,
-                           let nsImage = NSImage(data: imageData) {
-                            Image(nsImage: nsImage)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxHeight: 300)
-                                .padding(.horizontal)
-                                .padding(.bottom, 7)
-                        }
-                        
                         copyButton(for: message.content)
                             .padding(.trailing, 3)
                             .padding(.bottom, 3)
@@ -128,48 +139,6 @@ struct MessageView: View {
                     .background(message.isUser ? Color.blue : Color.gray.opacity(0.2))
                     .cornerRadius(11)
                     .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
-                } else {
-                    // Mixed content with code blocks and markdown
-                    ForEach(Array(codeBlocks.enumerated()), id: \.offset) { index, block in
-                        VStack(alignment: .trailing, spacing: 0) {
-                            if block.isCode {
-                                Text(block.content)
-                                    .textSelection(.enabled)
-                                    .font(.system(.body, design: .monospaced))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal)
-                                    .padding(.top, 4)
-                            } else {
-                                Text(formatMarkdown(block.content))
-                                    .textSelection(.enabled)
-                                    .foregroundColor(message.isUser ? .white : .primary)
-                                    .padding(.horizontal)
-                                    .padding(.top, 4)
-                            }
-                            
-                            copyButton(for: block.content, index: index)
-                                .padding(.trailing, 3)
-                                .padding(.bottom, 3)
-                        }
-                        .background(block.isCode ? Color.black.opacity(0.8) : (message.isUser ? Color.blue : Color.gray.opacity(0.2)))
-                        .cornerRadius(11)
-                        .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
-                    }
-                    
-                    if let imageData = message.imageData,
-                       let nsImage = NSImage(data: imageData) {
-                        VStack(alignment: .trailing, spacing: 0) {
-                            Image(nsImage: nsImage)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxHeight: 300)
-                                .padding(.horizontal)
-                                .padding(.vertical, 7)
-                        }
-                        .background(message.isUser ? Color.blue : Color.gray.opacity(0.2))
-                        .cornerRadius(11)
-                        .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
-                    }
                 }
             }
             .padding(.horizontal, 7)
