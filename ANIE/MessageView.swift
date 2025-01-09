@@ -14,7 +14,12 @@ struct MessageView: View {
         for (index, part) in parts.enumerated() {
             if index % 2 == 0 {
                 // Regular text - process normally
-                if var processed = try? AttributedString(markdown: part, options: .init(
+                // First, clean up leading spaces in paragraphs
+                let cleanedText = part.components(separatedBy: .newlines)
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .joined(separator: "\n")
+                
+                if var processed = try? AttributedString(markdown: cleanedText, options: .init(
                     allowsExtendedAttributes: true,
                     interpretedSyntax: .inlineOnlyPreservingWhitespace,
                     failurePolicy: .returnPartiallyParsedIfPossible
