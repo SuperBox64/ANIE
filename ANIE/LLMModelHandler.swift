@@ -62,8 +62,62 @@ class LLMModelHandler: ChatGPTClient {
         self.baseURL = baseURL
     }
     
+    // Add file logging helper
+    private func logToFile(_ message: String, type: String = "response") {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        
+        // Create logs directory if it doesn't exist
+        let fileManager = FileManager.default
+        let logsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ANIE_Logs", isDirectory: true)
+        
+        try? fileManager.createDirectory(at: logsDirectory, withIntermediateDirectories: true)
+        
+        // Create log file with timestamp
+        let timestamp = dateFormatter.string(from: Date())
+        let fileName = "\(type)_\(timestamp).log"
+        let fileURL = logsDirectory.appendingPathComponent(fileName)
+        
+        // Add metadata and format
+        let logContent = """
+        === ANIE LLM Log ===
+        Timestamp: \(timestamp)
+        Type: \(type)
+        Model: \(LLMConfig.model)
+        Temperature: \(LLMConfig.temperature)
+        
+        Content:
+        \(message)
+        
+        ==================
+        """
+        
+        do {
+            try logContent.write(to: fileURL, atomically: true, encoding: .utf8)
+            print("🗄️ [Logger] Saved \(type) to: \(fileURL.path)")
+        } catch {
+            print("❌ [Logger] Failed to write log: \(error.localizedDescription)")
+        }
+    }
+    
     func generateResponse(for message: String) async throws -> String {
         let url = URL(string: "\(baseURL)/chat/completions")!
+        
+        // Log the request
+        let requestBody: [String: Any] = [
+            "model": LLMConfig.model,
+            "messages": conversationHistory.map { [
+                "role": $0.role,
+                "content": $0.content
+            ] },
+            "temperature": LLMConfig.temperature
+        ]
+        
+        if let requestJSON = try? JSONSerialization.data(withJSONObject: requestBody),
+           let requestString = String(data: requestJSON, encoding: .utf8) {
+            logToFile(requestString, type: "request")
+        }
         
         // Add user's message to history
         conversationHistory.append(ChatMessage(content: message, role: "user"))
@@ -88,6 +142,11 @@ class LLMModelHandler: ChatGPTClient {
         
         let (data, urlResponse) = try await session.data(for: request)
         
+        // Log raw response
+        if let rawResponse = String(data: data, encoding: .utf8) {
+            logToFile(rawResponse, type: "raw_response")
+        }
+        
         guard let httpResponse = urlResponse as? HTTPURLResponse else {
             throw ChatError.networkError(URLError(.badServerResponse))
         }
@@ -98,6 +157,9 @@ class LLMModelHandler: ChatGPTClient {
         
         let chatResponse = try JSONDecoder().decode(ChatResponse.self, from: data)
         if let responseContent = chatResponse.choices.first?.message.content {
+            // Log processed response
+            logToFile(responseContent, type: "processed_response")
+            
             conversationHistory.append(ChatMessage(content: responseContent, role: "assistant"))
             return responseContent
         }

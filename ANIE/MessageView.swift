@@ -7,33 +7,67 @@ struct MessageView: View {
     @State private var isCopied = false
     
     private func formatMarkdown(_ text: String) -> AttributedString {
-        // First try with full markdown interpretation
-        if var fullMarkdown = try? AttributedString(markdown: text, options: .init(
-            allowsExtendedAttributes: true,
-            interpretedSyntax: .inlineOnlyPreservingWhitespace,
-            failurePolicy: .returnPartiallyParsedIfPossible
-        )) {
-
-                // Define all markers to remove
-            let headerMarkers = ["#### ", "### ", "## ", "# "]
-            
-            // Remove all header markers
-            for marker in headerMarkers {
-                while let range = fullMarkdown.range(of: marker) {
-                    fullMarkdown.replaceSubrange(range, with: AttributedString(""))
+        // Split into code blocks and regular text
+        let parts = text.components(separatedBy: "```")
+        var result = AttributedString()
+        
+        for (index, part) in parts.enumerated() {
+            if index % 2 == 0 {
+                // Regular text - process normally
+                if var processed = try? AttributedString(markdown: part, options: .init(
+                    allowsExtendedAttributes: true,
+                    interpretedSyntax: .inlineOnlyPreservingWhitespace,
+                    failurePolicy: .returnPartiallyParsedIfPossible
+                )) {
+                    // Define all markers to remove
+                    let headerMarkers = ["#### ", "### ", "## ", "# "]
+                    
+                    // Remove header markers
+                    for marker in headerMarkers {
+                        while let range = processed.range(of: marker) {
+                            processed.replaceSubrange(range, with: AttributedString(""))
+                        }
+                    }
+                    
+                    // Replace horizontal rules
+                    while let range = processed.range(of: "---\n") {
+                        processed.replaceSubrange(range, with: AttributedString(""))
+                    }
+                    
+                    // Replace list markers
+                    while let range = processed.range(of: "- ") {
+                        processed.replaceSubrange(range, with: AttributedString("⏺ "))
+                    }
+                    
+                    result += processed
                 }
+            } else {
+                // Code block - preserve whitespace
+                var codeBlock = part.trimmingCharacters(in: .newlines)
+                
+                // Remove language identifier if present
+                if let firstNewline = codeBlock.firstIndex(of: "\n") {
+                    codeBlock = String(codeBlock[firstNewline...]).trimmingCharacters(in: .newlines)
+                }
+                
+                // Create attributed string with monospace font and preserve whitespace
+                var codeAttr = AttributedString(codeBlock)
+                
+                // Set font without optional binding
+                let font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+                codeAttr.font = .init(font)
+                
+                // Use system label color that automatically adapts to light/dark mode
+                codeAttr.foregroundColor = Color(nsColor: .labelColor)
+                
+                // Add newlines around code blocks for better spacing
+                result += AttributedString("\n")
+                result += codeAttr
+                result += AttributedString("\n")
             }
-
-            while let b = fullMarkdown.range(of: "---\n") {
-                fullMarkdown.replaceSubrange(b, with: AttributedString(""))
-            }
-            
-            while let b = fullMarkdown.range(of: "- ") {
-                fullMarkdown.replaceSubrange(b, with: AttributedString("⏺ "))
-            }
-            return fullMarkdown
         }
-        return AttributedString(text)
+        
+        return result
     }
     
     var body: some View {
