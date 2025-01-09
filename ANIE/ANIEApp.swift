@@ -102,6 +102,7 @@ struct ANIEApp: App {
                         shouldRefreshCredentials = false
                     }
                 }
+
         }
         .windowStyle(.automatic)
         .defaultSize(width: 800, height: 600)

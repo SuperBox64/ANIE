@@ -159,6 +159,7 @@ struct LLMChatView: View {
                         .offset(y: -1)
                     }
                 }
+
                 .padding(.bottom, 8)
             }
         }

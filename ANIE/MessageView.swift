@@ -9,19 +9,21 @@ struct MessageView: View {
     private func formatSwiftCode(_ code: String) -> AttributedString {
         var result = AttributedString(code)
         
-        // Define Xcode's exact colors using system colors where possible
-        let keywordColor = Color(nsColor: NSColor.systemPink)                                                  // Pink for keywords
-        let typeColor = Color(nsColor: NSColor.systemPurple)                                                   // Purple for Int/types
-        let functionCallColor = Color(nsColor: NSColor.systemTeal)                                             // Teal for function calls
-        let stringColor = Color(nsColor: NSColor.systemRed)                                                    // Red for strings
-        let numberColor = Color(nsColor: NSColor(red: 252/255, green: 186/255, blue: 3/255, alpha: 1.0))      // Darker yellow for numbers
-        let operatorColor = Color(nsColor: NSColor.systemTeal)                                                 // Teal for operators
-        let printColor = Color(nsColor: NSColor.systemPurple)                                                  // Purple for print
-        let parameterColor = Color(nsColor: NSColor.textColor)                                                 // System text color for parameters
-        let defaultColor = Color(nsColor: NSColor.textColor)                                                   // System text color for default text
-        let commentColor = Color(nsColor: NSColor.secondaryLabelColor)                                         // System gray for comments
-        let docCommentColor = Color(nsColor: NSColor.tertiaryLabelColor)                                      // Darker system gray for doc comments
-        let markCommentColor = Color(nsColor: NSColor.secondaryLabelColor)                                     // System gray for MARK comments
+        // Define Xcode's exact colors to match the bright theme
+        let keywordColor = Color(nsColor: NSColor(red: 255/255, green: 112/255, blue: 167/255, alpha: 1.0))    // Bright pink for keywords
+        let typeColor = Color(nsColor: NSColor(red: 154/255, green: 134/255, blue: 255/255, alpha: 1.0))       // Bright purple for Int/types
+        let functionCallColor = Color(nsColor: NSColor(red: 103/255, green: 243/255, blue: 255/255, alpha: 1.0))// Bright teal for function calls
+        let stringColor = Color(nsColor: NSColor(red: 255/255, green: 128/255, blue: 89/255, alpha: 1.0))      // Bright coral for strings
+        let numberColor = Color(nsColor: NSColor(red: 255/255, green: 172/255, blue: 48/255, alpha: 1.0))      // Bright gold for numbers
+        let operatorColor = Color(nsColor: NSColor(red: 103/255, green: 243/255, blue: 255/255, alpha: 1.0))   // Bright teal for operators
+        let printColor = Color(nsColor: NSColor(red: 154/255, green: 134/255, blue: 255/255, alpha: 1.0))      // Bright purple for print
+        let parameterColor = Color.white                                                                        // Pure white for parameters
+        let defaultColor = Color.white                                                                          // Pure white for default text
+        
+        // Comment colors with proper opacity for visibility
+        let regularCommentColor = Color(nsColor: NSColor(red: 108/255, green: 121/255, blue: 134/255, alpha: 1.0))    // Regular comments
+        let docCommentColor = Color(nsColor: NSColor(red: 108/255, green: 121/255, blue: 134/255, alpha: 1.0))        // Doc comments (///)
+        let markCommentColor = Color(nsColor: NSColor(red: 180/255, green: 190/255, blue: 200/255, alpha: 1.0))       // MARK/TODO comments - brighter gray
         
         // Set default text color
         result.foregroundColor = defaultColor
@@ -30,7 +32,7 @@ struct MessageView: View {
         let range = NSRange(location: 0, length: text.length)
         
         // Keywords (pink)
-        let keywords = ["func", "if", "else", "return", "let", "var"]
+        let keywords = ["struct","class","func", "if", "else", "return", "let", "var"]
         
         // Common Swift types (purple)
         let types = ["Int", "String", "Double", "Float", "Bool"]
@@ -179,9 +181,23 @@ struct MessageView: View {
         }
         
         // Comments must be handled last to allow syntax highlighting of code before comments
+        let todoPattern = "//\\s*TODO:.*$"
         let markPattern = "//\\s*MARK:.*$"
         let docPattern = "///.*$"
-        let commentPattern = "//(?!/|\\s*MARK:).*$"
+        let commentPattern = "//(?!/|\\s*MARK:|\\s*TODO:).*$"
+        
+        // TODO comments
+        if let regex = try? NSRegularExpression(pattern: todoPattern, options: [.anchorsMatchLines]) {
+            let matches = regex.matches(in: code, range: range)
+            for match in matches.reversed() {
+                if let stringRange = Range(match.range, in: code),
+                   let attributedRange = Range(stringRange, in: result) {
+                    var commentAttr = AttributedString(String(code[stringRange]))
+                    commentAttr.foregroundColor = markCommentColor  // Using same color as MARK
+                    result.replaceSubrange(attributedRange, with: commentAttr)
+                }
+            }
+        }
         
         // MARK comments
         if let regex = try? NSRegularExpression(pattern: markPattern, options: [.anchorsMatchLines]) {
@@ -196,7 +212,7 @@ struct MessageView: View {
             }
         }
         
-        // Doc comments
+        // Doc comments (///)
         if let regex = try? NSRegularExpression(pattern: docPattern, options: [.anchorsMatchLines]) {
             let matches = regex.matches(in: code, range: range)
             for match in matches.reversed() {
@@ -209,14 +225,14 @@ struct MessageView: View {
             }
         }
         
-        // Regular comments
+        // Regular comments (//)
         if let regex = try? NSRegularExpression(pattern: commentPattern, options: [.anchorsMatchLines]) {
             let matches = regex.matches(in: code, range: range)
             for match in matches.reversed() {
                 if let stringRange = Range(match.range, in: code),
                    let attributedRange = Range(stringRange, in: result) {
                     var commentAttr = AttributedString(String(code[stringRange]))
-                    commentAttr.foregroundColor = commentColor
+                    commentAttr.foregroundColor = regularCommentColor
                     result.replaceSubrange(attributedRange, with: commentAttr)
                 }
             }
@@ -364,7 +380,7 @@ struct MessageView: View {
                             .padding(.trailing, 3)
                             .padding(.bottom, 3)
                     }
-                    .background(message.isUser ? Color.blue : Color.gray.opacity(0.2))
+                    .background(message.isUser ? Color.blue : Color.black)
                     .cornerRadius(11)
                     .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
                 }
@@ -495,17 +511,29 @@ struct MessageView: View {
 } 
 
 
-// Comment1
-/// Comment2
-// MARK: COMMENT3
+// Regular Comment
+/// Condensed Comment
+// MARK: BOLD COMMENT 1
+// TODO: BOLD COMMENT 2
 func factorial(_ n: Int) -> Int {
     print("The factorial of \(n) is: \(n)")
+    
+    class test {
+        let x = 1
+        var y = 2
+    }
     if n == 0 {
         return 1
     } else {
         return n * factorial(n - 1)
     }
 }
+
+
+
+
+
+
 
 
 
