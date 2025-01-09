@@ -14,20 +14,14 @@ struct MessageView: View {
             failurePolicy: .returnPartiallyParsedIfPossible
         )) {
 
-            while let a = fullMarkdown.range(of: "#### ") {
-                fullMarkdown.replaceSubrange(a, with: AttributedString(""))
-            }
+                // Define all markers to remove
+            let headerMarkers = ["#### ", "### ", "## ", "# "]
             
-            while let a = fullMarkdown.range(of: "### ") {
-                fullMarkdown.replaceSubrange(a, with: AttributedString(""))
-            }
-            
-            while let a = fullMarkdown.range(of: "## ") {
-                fullMarkdown.replaceSubrange(a, with: AttributedString(""))
-            }
-            
-            while let a = fullMarkdown.range(of: "# ") {
-                fullMarkdown.replaceSubrange(a, with: AttributedString(""))
+            // Remove all header markers
+            for marker in headerMarkers {
+                while let range = fullMarkdown.range(of: marker) {
+                    fullMarkdown.replaceSubrange(range, with: AttributedString(""))
+                }
             }
 
             while let b = fullMarkdown.range(of: "---\n") {
