@@ -7,29 +7,39 @@ struct MessageView: View {
     @State private var isCopied = false
     
     private func formatMarkdown(_ text: String) -> AttributedString {
-        // Preprocess to remove ### symbols
-        let a = text.replacingOccurrences(of: "---", with: "———————————————————————————")
-        let b = a.replacingOccurrences(of: "-", with: "•")
-        let c = b.replacingOccurrences(of: "###", with: "")
+        // First try with full markdown interpretation
+        if var fullMarkdown = try? AttributedString(markdown: text, options: .init(
+            allowsExtendedAttributes: true,
+            interpretedSyntax: .inlineOnlyPreservingWhitespace,
+            failurePolicy: .returnPartiallyParsedIfPossible
+        )) {
 
-        // First pass - try complete markdown
-        if let inlineMarkdown = try? AttributedString(markdown: c, options: .init(
-            allowsExtendedAttributes: true,
-            interpretedSyntax: .inlineOnlyPreservingWhitespace
-        )) {
-            return inlineMarkdown
-        }
-        
-        // Second pass - try inline only if complete fails
-        if let fullMarkdown = try? AttributedString(markdown: c, options: .init(
-            allowsExtendedAttributes: true,
-            interpretedSyntax: .full
-        )) {
+            while let a = fullMarkdown.range(of: "#### ") {
+                fullMarkdown.replaceSubrange(a, with: AttributedString(""))
+            }
+            
+            while let a = fullMarkdown.range(of: "### ") {
+                fullMarkdown.replaceSubrange(a, with: AttributedString(""))
+            }
+            
+            while let a = fullMarkdown.range(of: "## ") {
+                fullMarkdown.replaceSubrange(a, with: AttributedString(""))
+            }
+            
+            while let a = fullMarkdown.range(of: "# ") {
+                fullMarkdown.replaceSubrange(a, with: AttributedString(""))
+            }
+
+            while let b = fullMarkdown.range(of: "---\n") {
+                fullMarkdown.replaceSubrange(b, with: AttributedString(""))
+            }
+            
+            while let b = fullMarkdown.range(of: "- ") {
+                fullMarkdown.replaceSubrange(b, with: AttributedString("⏺ "))
+            }
             return fullMarkdown
         }
-        
-        // Fallback to plain text if both passes fail
-        return AttributedString(c)
+        return AttributedString(text)
     }
     
     var body: some View {
