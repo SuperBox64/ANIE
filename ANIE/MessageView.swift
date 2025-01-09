@@ -91,12 +91,14 @@ struct MessageView: View {
                         VStack(alignment: .trailing, spacing: 0) {
                             if block.isCode {
                                 Text(block.content)
+                                    .textSelection(.enabled)
                                     .font(.system(.body, design: .monospaced))
                                     .foregroundColor(.white)
                                     .padding(.horizontal)
                                     .padding(.top, 4)
                             } else {
                                 Text(formatMarkdown(block.content))
+                                    .textSelection(.enabled)
                                     .foregroundColor(message.isUser ? .white : .primary)
                                     .padding(.horizontal)
                                     .padding(.top, 4)
