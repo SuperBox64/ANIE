@@ -131,6 +131,11 @@ struct ChatSidebarView: View {
     @State private var newSessionSubject = ""
     @State private var sessionToDelete: UUID?
     
+    // Add logging helper
+    private func log(_ message: String) {
+        print("🔷 [ChatSidebarView] \(message)")
+    }
+    
     var body: some View {
         VStack {
             // Header with add/remove buttons
@@ -178,28 +183,59 @@ struct ChatSidebarView: View {
             
             // Sessions list
             List(viewModel.sessions) { session in
-                Button {
-                    // Empty action since we're using gesture
-                } label: {
-                    Text(session.subject)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                Button(action: {
+                    log("Button tapped for session: \(session.id)")
+                    withAnimation {
+                        viewModel.selectSession(id: session.id)
+                    }
+                }) {
+                    // Wrap everything in a full-width HStack
+                    HStack(spacing: 0) {
+                        HStack {
+                            Text(session.subject)
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .onAppear {
+                                    log("Session view appeared: \(session.id)")
+                                    log("isLoadingSession: \(viewModel.isLoadingSession)")
+                                    log("loadedSessions: \(viewModel.loadedSessions)")
+                                }
+                            
+                            if viewModel.isLoadingSession && session.id == viewModel.selectedSessionId {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .frame(width: 20, height: 20)
+                                    .onAppear {
+                                        log("Loading indicator appeared for session: \(session.id)")
+                                    }
+                            } else if viewModel.loadedSessions.contains(session.id) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.green)
+                                    .opacity(0.7)
+                                    .onAppear {
+                                        log("Checkmark appeared for session: \(session.id)")
+                                    }
+                            }
+                        }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
+                        .frame(maxWidth: .infinity) // Make inner HStack take full width
                         .background(
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(session.id == viewModel.selectedSessionId ? 
                                     Color.blue : Color.clear)
                         )
                         .foregroundColor(session.id == viewModel.selectedSessionId ? .white : .primary)
+                        .contentShape(Rectangle()) // Make entire area clickable
+                    }
+                    .frame(maxWidth: .infinity) // Make outer HStack take full width
+                    .contentShape(Rectangle()) // Make entire area clickable
                 }
                 .buttonStyle(PlainButtonStyle())
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    viewModel.selectSession(id: session.id)
-                }
+                .listRowInsets(EdgeInsets()) // Remove default list row insets
             }
         }
         .frame(width: 200)

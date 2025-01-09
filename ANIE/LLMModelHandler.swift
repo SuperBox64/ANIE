@@ -110,15 +110,26 @@ class LLMModelHandler: ChatGPTClient {
         conversationHistory.append(systemPrompt)
     }
     
+    private func log(_ message: String) {
+        print("🔧 [LLMModelHandler] \(message)")
+    }
+    
     func restoreConversation(from messages: [Message]) {
+        log("Starting restoreConversation")
+        log("Message count: \(messages.count)")
+        
         conversationHistory = [systemPrompt] // Start with system prompt
+        log("Added system prompt")
+        
         // Then add the conversation messages
-        conversationHistory.append(contentsOf: messages.map { message in
-            ChatMessage(
+        for message in messages {
+            log("Adding message: \(message.id) (isUser: \(message.isUser))")
+            conversationHistory.append(ChatMessage(
                 content: message.content,
                 role: message.isUser ? "user" : "assistant"
-            )
-        })
+            ))
+        }
+        log("Finished restoring conversation")
     }
 }
 

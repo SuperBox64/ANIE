@@ -8,6 +8,8 @@ class LLMViewModel: ObservableObject {
     @Published var selectedSessionId: UUID?
     @Published var isProcessing = false
     @Published var processingProgress: Double = 0
+    @Published var isLoadingSession = false
+    @Published var loadedSessions = Set<UUID>()
     
     private let modelHandler = LLMModelHandler()
     private let sessionsKey = "chatSessions"
@@ -51,13 +53,66 @@ class LLMViewModel: ObservableObject {
         }
     }
     
+    // Add logging helper
+    private func log(_ message: String) {
+        print("📱 [LLMViewModel] \(message)")
+    }
+    
     private func loadSessions() {
-        if let data = UserDefaults.standard.data(forKey: sessionsKey),
-           let savedSessions = try? JSONDecoder().decode([ChatSession].self, from: data) {
-            sessions = savedSessions
-            selectedSessionId = sessions.first?.id
-            if let session = currentSession {
+        log("Starting loadSessions()")
+        if let data = UserDefaults.standard.data(forKey: sessionsKey) {
+            log("Found data in UserDefaults")
+            if let savedSessions = try? JSONDecoder().decode([ChatSession].self, from: data) {
+                log("Successfully decoded \(savedSessions.count) sessions")
+                sessions = savedSessions
+                
+                if let firstSession = sessions.first {
+                    log("Loading first session: \(firstSession.id)")
+                    selectedSessionId = firstSession.id
+                    Task {
+                        log("Starting initial session load task")
+                        await loadSessionData(firstSession.id)
+                    }
+                } else {
+                    log("No sessions available after loading")
+                }
+            } else {
+                log("❌ Failed to decode sessions data")
+            }
+        } else {
+            log("No sessions data found in UserDefaults")
+        }
+    }
+    
+    private func loadSessionData(_ sessionId: UUID, forceLoad: Bool = false) async {
+        log("Starting loadSessionData for session: \(sessionId)")
+        
+        if !forceLoad && loadedSessions.contains(sessionId) {
+            log("Session \(sessionId) already loaded, skipping")
+            return
+        }
+        
+        await MainActor.run {
+            log("Setting isLoadingSession = true")
+            isLoadingSession = true
+        }
+        
+        if let session = sessions.first(where: { $0.id == sessionId }) {
+            log("Found session to load: \(session.subject)")
+            log("Message count: \(session.messages.count)")
+            
+            await MainActor.run {
+                log("Restoring conversation for session: \(sessionId)")
                 modelHandler.restoreConversation(from: session.messages)
+                log("Adding session to loadedSessions")
+                loadedSessions.insert(sessionId)
+                log("Setting isLoadingSession = false")
+                isLoadingSession = false
+            }
+        } else {
+            log("❌ Session not found: \(sessionId)")
+            await MainActor.run {
+                isLoadingSession = false
             }
         }
     }
@@ -72,28 +127,46 @@ class LLMViewModel: ObservableObject {
         let newSession = ChatSession(subject: subject)
         sessions.append(newSession)
         selectedSessionId = newSession.id
+        loadedSessions.insert(newSession.id)  // Mark as loaded since it's new
         modelHandler.clearHistory()
         saveSessions()
     }
     
     func removeSession(id: UUID) {
         sessions.removeAll { $0.id == id }
-        selectedSessionId = sessions.first?.id
-        if let session = currentSession {
-            modelHandler.restoreConversation(from: session.messages)
+        loadedSessions.remove(id)  // Remove from loaded sessions
+        
+        if let firstSession = sessions.first {
+            selectedSessionId = firstSession.id
+            Task {
+                await loadSessionData(firstSession.id)
+            }
         } else {
+            selectedSessionId = nil
             modelHandler.clearHistory()
         }
         saveSessions()
     }
     
+    private var lastRestoredSession: UUID?
+    
     func selectSession(id: UUID) {
-        // Only update if it's a different session
-        guard selectedSessionId != id else { return }
+        log("selectSession called with id: \(id)")
+        log("Current selectedSessionId: \(String(describing: selectedSessionId))")
         
+        guard selectedSessionId != id else {
+            log("Session already selected, skipping")
+            return
+        }
+        
+        log("Updating selectedSessionId to: \(id)")
         selectedSessionId = id
-        if let session = currentSession {
-            modelHandler.restoreConversation(from: session.messages)
+        
+        // Force load even if already loaded
+        Task {
+            log("Starting loadSessionData task")
+            await loadSessionData(id, forceLoad: true)
+            log("Triggering scroll to bottom")
             ScrollManager.shared.scrollToBottom()
         }
     }
