@@ -306,8 +306,7 @@ struct MessageView: View {
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                         
                                         copyButton(for: block.content, index: index)
-                                            .padding(.trailing, 3)
-                                            .padding(.bottom, 3)
+                                            .padding([.trailing, .bottom], 3)
                                     }
                                     .background(isSwift ? 
                                         (colorScheme == .dark ? Color.black : Color.white) :
@@ -330,6 +329,15 @@ struct MessageView: View {
                             }
                             .transaction { transaction in
                                 transaction.animation = nil
+                            }
+                        }
+                        
+                        // Only show the extra clipboard if there's more than just a code block
+                        if blocks.count > 1 || (blocks.count == 1 && !blocks[0].isCode) {
+                            HStack {
+                                Spacer()
+                                copyButton(for: message.content)
+                                    .padding([.trailing, .bottom], 3)
                             }
                         }
                     }
