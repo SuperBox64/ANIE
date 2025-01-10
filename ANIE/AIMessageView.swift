@@ -40,11 +40,7 @@ struct AIMessageView: View {
                         .cornerRadius(8)
                         .padding(6)
                     } else {
-                        Text(try! AttributedString(markdown: block.content, options: .init(
-                            allowsExtendedAttributes: true,
-                            interpretedSyntax: .inlineOnlyPreservingWhitespace,
-                            failurePolicy: .returnPartiallyParsedIfPossible
-                        )))
+                        Text(formatMarkdown(block.content))
                         .textSelection(.enabled)
                         .foregroundColor(Color(nsColor: NSColor.labelColor))
                     }

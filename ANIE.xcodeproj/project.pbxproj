@@ -6,7 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		6EB568632D30E10F00828D44 /* Markdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EB568622D30E10F00828D44 /* Markdown.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		6EB568622D30E10F00828D44 /* Markdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Markdown.swift; sourceTree = "<group>"; };
 		6EFB98502D2B34F7004942D9 /* ANIE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ANIE.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -45,6 +50,7 @@
 		6EFB98472D2B34F7004942D9 = {
 			isa = PBXGroup;
 			children = (
+				6EB568622D30E10F00828D44 /* Markdown.swift */,
 				6EFB98522D2B34F7004942D9 /* ANIE */,
 				6EFB98512D2B34F7004942D9 /* Products */,
 			);
@@ -132,6 +138,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6EB568632D30E10F00828D44 /* Markdown.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
