@@ -1,5 +1,12 @@
 import SwiftUI
 
+private struct ViewHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct LLMChatView: View {
     @ObservedObject var viewModel: LLMViewModel
     @EnvironmentObject var scrollManager: ScrollManager
@@ -54,18 +61,8 @@ struct LLMChatView: View {
                         .padding(.horizontal, 18)
                         .padding(.vertical, 8)
                         .onAppear {
-                            scrollProxy = proxy
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            withAnimation {
                                 proxy.scrollTo("bottom", anchor: .bottom)
-                            }
-                        }
-                        .onChange(of: viewModel.selectedSessionId) { oldId, newId in
-                            Task { @MainActor in
-                                if let lastMessage = viewModel.currentSession?.messages.last {
-                                    await MainActor.run {
-                                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                                    }
-                                }
                             }
                         }
                         
@@ -73,13 +70,14 @@ struct LLMChatView: View {
                             .frame(height: 1)
                             .id("bottom")
                     }
-                    .onChange(of: scrollManager.shouldScrollToBottom) { oldValue, newValue in
-                        if newValue {
-                            Task { @MainActor in
-                                await MainActor.run {
-                                    proxy.scrollTo("bottom", anchor: .bottom)
-                                }
-                            }
+                    .onChange(of: viewModel.currentSession?.messages.count) { _, _ in
+                        withAnimation {
+                            proxy.scrollTo("bottom", anchor: .bottom)
+                        }
+                    }
+                    .onChange(of: viewModel.selectedSessionId) { _, _ in
+                        withAnimation {
+                            proxy.scrollTo("bottom", anchor: .bottom)
                         }
                     }
                 }

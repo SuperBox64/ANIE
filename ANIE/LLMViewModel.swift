@@ -219,11 +219,6 @@ class LLMViewModel: ObservableObject {
                 loadedSessions.insert(id)  // Show checkmark
             }
             processingProgress = 1.0
-            
-            // Scroll after image message is processed
-            DispatchQueue.main.async {
-                ScrollManager.shared.scrollToBottom()
-            }
             return
         }
         
@@ -278,11 +273,6 @@ class LLMViewModel: ObservableObject {
             loadedSessions.insert(id)  // Show checkmark
         }
         processingProgress = 1.0
-        
-        // Scroll after all processing is complete
-        DispatchQueue.main.async {
-            ScrollManager.shared.scrollToBottom()
-        }
     }
     
     private func extractImageData(from input: String) -> Data? {
