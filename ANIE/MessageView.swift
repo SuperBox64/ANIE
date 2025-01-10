@@ -5,150 +5,62 @@ struct MessageView: View {
     let message: Message
     @State private var copiedIndex: Int?
     @State private var isCopied = false
+    @Environment(\.colorScheme) private var colorScheme
     
     private func formatSwiftCode(_ code: String) -> AttributedString {
         var result = AttributedString(code)
         
-        // Define Xcode's exact colors to match the bright theme
-        let keywordColor = Color(nsColor: NSColor(red: 255/255, green: 112/255, blue: 167/255, alpha: 1.0))    // Bright pink for keywords
-        let typeColor = Color(nsColor: NSColor(red: 154/255, green: 134/255, blue: 255/255, alpha: 1.0))       // Bright purple for Int/types
-        let functionCallColor = Color(nsColor: NSColor(red: 103/255, green: 243/255, blue: 255/255, alpha: 1.0))// Bright teal for function calls
-        let stringColor = Color(nsColor: NSColor(red: 255/255, green: 128/255, blue: 89/255, alpha: 1.0))      // Bright coral for strings
-        let numberColor = Color(nsColor: NSColor(red: 255/255, green: 172/255, blue: 48/255, alpha: 1.0))      // Bright gold for numbers
-        let operatorColor = Color(nsColor: NSColor(red: 103/255, green: 243/255, blue: 255/255, alpha: 1.0))   // Bright teal for operators
-        let printColor = Color(nsColor: NSColor(red: 154/255, green: 134/255, blue: 255/255, alpha: 1.0))      // Bright purple for print
-        let parameterColor = Color.white                                                                        // Pure white for parameters
-        let defaultColor = Color.white                                                                          // Pure white for default text
+        // Define colors based on color scheme
+        let isDarkMode = colorScheme == .dark
         
-        // Comment colors with proper opacity for visibility
-        let regularCommentColor = Color(nsColor: NSColor(red: 108/255, green: 121/255, blue: 134/255, alpha: 1.0))    // Regular comments
-        let docCommentColor = Color(nsColor: NSColor(red: 108/255, green: 121/255, blue: 134/255, alpha: 1.0))        // Doc comments (///)
-        let markCommentColor = Color(nsColor: NSColor(red: 180/255, green: 190/255, blue: 200/255, alpha: 1.0))       // MARK/TODO comments - brighter gray
+        // Default text color (white in dark mode, black in light mode)
+        let textColor = isDarkMode ? Color.white : Color.black
         
-        // Set default text color
+        // Default color is now green (for method calls and properties)
+        let defaultColor = isDarkMode ? Color(nsColor: NSColor(red: 108/255, green: 225/255, blue: 133/255, alpha: 1.0)) :
+                                      Color(nsColor: NSColor(red: 50/255, green: 144/255, blue: 66/255, alpha: 1.0))
+        
+        // Define Xcode's syntax highlighting colors
+        let keywordColor = isDarkMode ? Color(nsColor: NSColor(red: 255/255, green: 122/255, blue: 178/255, alpha: 1.0)) :
+                                      Color(nsColor: NSColor(red: 175/255, green: 35/255, blue: 185/255, alpha: 1.0))     // Pink for keywords
+        
+        let typeColor = isDarkMode ? Color(nsColor: NSColor(red: 150/255, green: 134/255, blue: 255/255, alpha: 1.0)) :
+                                   Color(nsColor: NSColor(red: 76/255, green: 99/255, blue: 175/255, alpha: 1.0))         // Light purple for String
+        
+        let printColor = isDarkMode ? Color(nsColor: NSColor(red: 202/255, green: 118/255, blue: 255/255, alpha: 1.0)) :
+                                    Color(nsColor: NSColor(red: 130/255, green: 45/255, blue: 201/255, alpha: 1.0))       // Darker purple for print
+        
+        let variableColor = isDarkMode ? Color(nsColor: NSColor(red: 86/255, green: 194/255, blue: 255/255, alpha: 1.0)) :
+                                       Color(nsColor: NSColor(red: 11/255, green: 136/255, blue: 186/255, alpha: 1.0))    // Light blue for identifiers
+        
+        let stringColor = isDarkMode ? Color(nsColor: NSColor(red: 252/255, green: 106/255, blue: 93/255, alpha: 1.0)) :
+                                     Color(nsColor: NSColor(red: 196/255, green: 26/255, blue: 22/255, alpha: 1.0))       // Red for strings
+
+        let regularCommentColor = isDarkMode ? Color(nsColor: NSColor(red: 128/255, green: 141/255, blue: 154/255, alpha: 1.0)) :
+                                             Color(nsColor: NSColor(red: 93/255, green: 108/255, blue: 121/255, alpha: 1.0))  // Gray for comments
+        
+        // Set initial color to green
         result.foregroundColor = defaultColor
         
         let text = code as NSString
         let range = NSRange(location: 0, length: text.length)
         
-        // Keywords (pink)
-        let keywords = ["struct","class","func", "if", "else", "return", "let", "var"]
-        
-        // Common Swift types (purple)
-        let types = ["Int", "String", "Double", "Float", "Bool"]
-        
-        // Special functions (purple)
-        let specialFunctions = ["print"]
-        
-        // Operators (teal)
-        let operators = ["==", "!=", ">=", "<=", "&&", "||", "!", "+", "-", "*", "/", "%", "^", "&", "|", "~", ".", "->", "<", ">", "=", "??", "?", ":", "_"]
-        
-        // Function parameters (must be first to avoid conflicts)
-        let paramPattern = "(?<=\\()([^)]+)(?=\\))"
-        if let regex = try? NSRegularExpression(pattern: paramPattern, options: []) {
+        // 0. Operators and punctuation (default text color)
+        let operatorPattern = "[.()\\\\:;,{}]|\\s*[=+\\-*/<>!&|^~]+\\s*"
+        if let regex = try? NSRegularExpression(pattern: operatorPattern, options: []) {
             let matches = regex.matches(in: code, range: range)
             for match in matches.reversed() {
                 if let stringRange = Range(match.range, in: code),
                    let attributedRange = Range(stringRange, in: result) {
-                    var paramAttr = AttributedString(String(code[stringRange]))
-                    paramAttr.foregroundColor = parameterColor
-                    result.replaceSubrange(attributedRange, with: paramAttr)
+                    var operatorAttr = AttributedString(String(code[stringRange]))
+                    operatorAttr.foregroundColor = textColor
+                    result.replaceSubrange(attributedRange, with: operatorAttr)
                 }
             }
         }
         
-        // Special functions like print (must be before other function calls)
-        for function in specialFunctions {
-            let pattern = "\\b\(function)\\b(?=\\s*\\()"
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                let matches = regex.matches(in: code, range: range)
-                for match in matches.reversed() {
-                    if let stringRange = Range(match.range, in: code),
-                       let attributedRange = Range(stringRange, in: result) {
-                        var functionAttr = AttributedString(String(code[stringRange]))
-                        functionAttr.foregroundColor = printColor
-                        result.replaceSubrange(attributedRange, with: functionAttr)
-                    }
-                }
-            }
-        }
-        
-        // String interpolation
-        let interpolationPattern = "\\\\\\([^)]+\\)"
-        if let regex = try? NSRegularExpression(pattern: interpolationPattern, options: []) {
-            let matches = regex.matches(in: code, range: range)
-            for match in matches.reversed() {
-                if let stringRange = Range(match.range, in: code),
-                   let attributedRange = Range(stringRange, in: result) {
-                    var interpolationAttr = AttributedString(String(code[stringRange]))
-                    interpolationAttr.foregroundColor = defaultColor
-                    result.replaceSubrange(attributedRange, with: interpolationAttr)
-                }
-            }
-        }
-        
-        // Strings (including the quotes)
-        let stringPattern = #""[^"\\]*(?:\\.[^"\\]*)*""#
-        if let regex = try? NSRegularExpression(pattern: stringPattern, options: [.dotMatchesLineSeparators]) {
-            let matches = regex.matches(in: code, range: range)
-            for match in matches.reversed() {
-                if let stringRange = Range(match.range, in: code),
-                   let attributedRange = Range(stringRange, in: result) {
-                    var stringAttr = AttributedString(String(code[stringRange]))
-                    stringAttr.foregroundColor = stringColor
-                    result.replaceSubrange(attributedRange, with: stringAttr)
-                }
-            }
-        }
-        
-        // Numbers
-        let numberPattern = "\\b\\d+(\\.\\d+)?\\b"
-        if let regex = try? NSRegularExpression(pattern: numberPattern, options: []) {
-            let matches = regex.matches(in: code, range: range)
-            for match in matches.reversed() {
-                if let stringRange = Range(match.range, in: code),
-                   let attributedRange = Range(stringRange, in: result) {
-                    var numberAttr = AttributedString(String(code[stringRange]))
-                    numberAttr.foregroundColor = numberColor
-                    result.replaceSubrange(attributedRange, with: numberAttr)
-                }
-            }
-        }
-        
-        // Function calls (after special functions are handled)
-        let functionCallPattern = "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()"
-        if let regex = try? NSRegularExpression(pattern: functionCallPattern, options: []) {
-            let matches = regex.matches(in: code, range: range)
-            for match in matches.reversed() {
-                if let stringRange = Range(match.range, in: code),
-                   let attributedRange = Range(stringRange, in: result) {
-                    let functionName = String(code[stringRange])
-                    if !keywords.contains(functionName) && !types.contains(functionName) && !specialFunctions.contains(functionName) {
-                        var functionAttr = AttributedString(functionName)
-                        functionAttr.foregroundColor = functionCallColor
-                        result.replaceSubrange(attributedRange, with: functionAttr)
-                    }
-                }
-            }
-        }
-        
-        // Types (must be before keywords to handle return types correctly)
-        for type in types {
-            let pattern = "\\b\(type)\\b"
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                let matches = regex.matches(in: code, range: range)
-                for match in matches.reversed() {
-                    if let stringRange = Range(match.range, in: code),
-                       let attributedRange = Range(stringRange, in: result) {
-                        var typeAttr = AttributedString(String(code[stringRange]))
-                        typeAttr.foregroundColor = typeColor
-                        result.replaceSubrange(attributedRange, with: typeAttr)
-                    }
-                }
-            }
-        }
-        
-        // Keywords
+        // 1. Keywords (pink)
+        let keywords = ["class", "var", "init", "self", "let", "func"]
         for keyword in keywords {
             let pattern = "\\b\(keyword)\\b"
             if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
@@ -163,69 +75,78 @@ struct MessageView: View {
                 }
             }
         }
+
+        // 2. Light blue identifiers (all names)
+        let bluePatterns = [
+            "(?<=\\b(class|var|let|func)\\s+)[a-zA-Z_][a-zA-Z0-9_]*\\b",  // After keywords
+            "(?<=\\w+:)\\s*[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*[,)])",          // Parameter values
+            "(?<=\\(|,\\s*)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)",             // Parameter names
+            "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*=)",                        // Variables being assigned
+            "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)",                        // Variables in declarations
+            "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\{)"                       // Class/struct names
+        ]
         
-        // Operators (must be last to handle compound operators correctly)
-        for op in operators.sorted(by: { $0.count > $1.count }) {  // Sort by length to handle longer operators first
-            let escapedOp = NSRegularExpression.escapedPattern(for: op)
-            if let regex = try? NSRegularExpression(pattern: escapedOp, options: []) {
+        for pattern in bluePatterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
                 let matches = regex.matches(in: code, range: range)
                 for match in matches.reversed() {
                     if let stringRange = Range(match.range, in: code),
                        let attributedRange = Range(stringRange, in: result) {
-                        var operatorAttr = AttributedString(String(code[stringRange]))
-                        operatorAttr.foregroundColor = operatorColor
-                        result.replaceSubrange(attributedRange, with: operatorAttr)
+                        var identifierAttr = AttributedString(String(code[stringRange]))
+                        identifierAttr.foregroundColor = variableColor
+                        result.replaceSubrange(attributedRange, with: identifierAttr)
                     }
                 }
             }
         }
-        
-        // Comments must be handled last to allow syntax highlighting of code before comments
-        let todoPattern = "//\\s*TODO:.*$"
-        let markPattern = "//\\s*MARK:.*$"
-        let docPattern = "///.*$"
-        let commentPattern = "//(?!/|\\s*MARK:|\\s*TODO:).*$"
-        
-        // TODO comments
-        if let regex = try? NSRegularExpression(pattern: todoPattern, options: [.anchorsMatchLines]) {
+
+        // 3. Type names (light purple)
+        let types = ["String"]
+        for type in types {
+            let pattern = "\\b\(type)\\b"
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+                let matches = regex.matches(in: code, range: range)
+                for match in matches.reversed() {
+                    if let stringRange = Range(match.range, in: code),
+                       let attributedRange = Range(stringRange, in: result) {
+                        var typeAttr = AttributedString(String(code[stringRange]))
+                        typeAttr.foregroundColor = typeColor
+                        result.replaceSubrange(attributedRange, with: typeAttr)
+                    }
+                }
+            }
+        }
+
+        // 4. Print function (dark purple)
+        let printPattern = "\\bprint\\b"
+        if let regex = try? NSRegularExpression(pattern: printPattern, options: []) {
             let matches = regex.matches(in: code, range: range)
             for match in matches.reversed() {
                 if let stringRange = Range(match.range, in: code),
                    let attributedRange = Range(stringRange, in: result) {
-                    var commentAttr = AttributedString(String(code[stringRange]))
-                    commentAttr.foregroundColor = markCommentColor  // Using same color as MARK
-                    result.replaceSubrange(attributedRange, with: commentAttr)
+                    var printAttr = AttributedString(String(code[stringRange]))
+                    printAttr.foregroundColor = printColor
+                    result.replaceSubrange(attributedRange, with: printAttr)
                 }
             }
         }
-        
-        // MARK comments
-        if let regex = try? NSRegularExpression(pattern: markPattern, options: [.anchorsMatchLines]) {
+
+        // 5. String literals (orangered)
+        let stringPattern = #""[^"\\]*(?:\\.[^"\\]*)*""#
+        if let regex = try? NSRegularExpression(pattern: stringPattern, options: []) {
             let matches = regex.matches(in: code, range: range)
             for match in matches.reversed() {
                 if let stringRange = Range(match.range, in: code),
                    let attributedRange = Range(stringRange, in: result) {
-                    var commentAttr = AttributedString(String(code[stringRange]))
-                    commentAttr.foregroundColor = markCommentColor
-                    result.replaceSubrange(attributedRange, with: commentAttr)
+                    var strAttr = AttributedString(String(code[stringRange]))
+                    strAttr.foregroundColor = stringColor
+                    result.replaceSubrange(attributedRange, with: strAttr)
                 }
             }
         }
-        
-        // Doc comments (///)
-        if let regex = try? NSRegularExpression(pattern: docPattern, options: [.anchorsMatchLines]) {
-            let matches = regex.matches(in: code, range: range)
-            for match in matches.reversed() {
-                if let stringRange = Range(match.range, in: code),
-                   let attributedRange = Range(stringRange, in: result) {
-                    var commentAttr = AttributedString(String(code[stringRange]))
-                    commentAttr.foregroundColor = docCommentColor
-                    result.replaceSubrange(attributedRange, with: commentAttr)
-                }
-            }
-        }
-        
-        // Regular comments (//)
+
+        // 6. Comments (gray)
+        let commentPattern = "//.*$"
         if let regex = try? NSRegularExpression(pattern: commentPattern, options: [.anchorsMatchLines]) {
             let matches = regex.matches(in: code, range: range)
             for match in matches.reversed() {
@@ -237,12 +158,12 @@ struct MessageView: View {
                 }
             }
         }
-        
+
         return result
     }
     
     private func formatMarkdown(_ text: String) -> AttributedString {
-        // Check if this is an error message (starts with "Error:" or contains specific error patterns)
+        // Check if this is an error message
         if text.hasPrefix("Error:") || text.contains("API Error:") {
             var errorAttr = AttributedString(text)
             errorAttr.foregroundColor = .white
@@ -255,68 +176,65 @@ struct MessageView: View {
         
         for (index, part) in parts.enumerated() {
             if index % 2 == 0 {
-                // Regular text - process normally
+                // Regular text - process markdown
                 let cleanedText = part.components(separatedBy: .newlines)
                     .map { $0.trimmingCharacters(in: .whitespaces) }
                     .joined(separator: "\n")
                 
-                if var processed = try? AttributedString(markdown: cleanedText, options: .init(
-                    allowsExtendedAttributes: true,
-                    interpretedSyntax: .inlineOnlyPreservingWhitespace,
-                    failurePolicy: .returnPartiallyParsedIfPossible
-                )) {
-                    // Define all markers to remove
-                    let headerMarkers = ["#### ", "### ", "## ", "# "]
-                    
-                    // Remove header markers
-                    for marker in headerMarkers {
-                        while let range = processed.range(of: marker) {
-                            processed.replaceSubrange(range, with: AttributedString(""))
+                if !cleanedText.isEmpty {
+                    if var processed = try? AttributedString(markdown: cleanedText, options: .init(
+                        allowsExtendedAttributes: true,
+                        interpretedSyntax: .inlineOnlyPreservingWhitespace,
+                        failurePolicy: .returnPartiallyParsedIfPossible
+                    )) {
+                        // Process markdown elements
+                        let headerMarkers = ["#### ", "### ", "## ", "# "]
+                        for marker in headerMarkers {
+                            while let range = processed.range(of: marker) {
+                                processed.replaceSubrange(range, with: AttributedString(""))
+                            }
+                        }
+                        
+                        // Replace list markers with bullets
+                        while let range = processed.range(of: "- ") {
+                            processed.replaceSubrange(range, with: AttributedString("• "))
+                        }
+                        
+                        result += processed
+                        
+                        // Add newline after regular text if not empty
+                        if !processed.characters.isEmpty {
+                            result += AttributedString("\n")
                         }
                     }
-                    
-                    // Replace horizontal rules
-                    while let range = processed.range(of: "---\n") {
-                        processed.replaceSubrange(range, with: AttributedString(""))
-                    }
-                    
-                    // Replace list markers
-                    while let range = processed.range(of: "- ") {
-                        processed.replaceSubrange(range, with: AttributedString("⏺ "))
-                    }
-                    
-                    result += processed
                 }
             } else {
-                // Code block - preserve whitespace and apply syntax highlighting
+                // Code block
                 var codeBlock = part.trimmingCharacters(in: .newlines)
                 
-                // Remove language identifier if present
+                // Extract language identifier if present
+                let language: String
                 if let firstNewline = codeBlock.firstIndex(of: "\n") {
-                    let language = codeBlock[..<firstNewline].trimmingCharacters(in: .whitespaces)
+                    language = codeBlock[..<firstNewline].trimmingCharacters(in: .whitespaces).lowercased()
                     codeBlock = String(codeBlock[firstNewline...]).trimmingCharacters(in: .newlines)
-                    
-                    // Apply syntax highlighting based on language
-                    if language.lowercased() == "swift" {
-                        var codeAttr = formatSwiftCode(codeBlock)
-                        let font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-                        codeAttr.font = .init(font)
-                        
-                        // Add newlines around code blocks for better spacing
-                        result += AttributedString("\n")
-                        result += codeAttr
-                        result += AttributedString("\n")
-                        continue
-                    }
+                } else {
+                    language = ""
                 }
                 
-                // Default formatting for non-Swift or unspecified language
-                var codeAttr = AttributedString(codeBlock)
+                // Apply appropriate syntax highlighting
+                var codeAttr: AttributedString
+                if language == "swift" {
+                    codeAttr = formatSwiftCode(codeBlock)
+                } else {
+                    codeAttr = AttributedString(codeBlock)
+                    codeAttr.foregroundColor = Color(nsColor: .labelColor)
+                }
+                
+                // Apply monospace font
                 let font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
                 codeAttr.font = .init(font)
-                codeAttr.foregroundColor = Color(nsColor: .labelColor)
                 
-                // Add newlines around code blocks for better spacing
+                // Add padding around code blocks
                 result += AttributedString("\n")
                 result += codeAttr
                 result += AttributedString("\n")
@@ -371,7 +289,7 @@ struct MessageView: View {
                     VStack(alignment: .trailing, spacing: 0) {
                         Text(formatMarkdown(message.content))
                             .textSelection(.enabled)
-                            .foregroundColor(message.isUser ? .white : .primary)
+                            .foregroundColor(message.isUser ? .white : Color(nsColor: NSColor.labelColor))
                             .padding(.horizontal)
                             .padding(.top, 4)
                             .padding(.bottom, 7)
@@ -380,7 +298,7 @@ struct MessageView: View {
                             .padding(.trailing, 3)
                             .padding(.bottom, 3)
                     }
-                    .background(message.isUser ? Color.blue : Color.black)
+                    .background(message.isUser ? Color.blue : Color(nsColor: NSColor.windowBackgroundColor))
                     .cornerRadius(11)
                     .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
                 }
@@ -528,6 +446,8 @@ func factorial(_ n: Int) -> Int {
         return n * factorial(n - 1)
     }
 }
+
+
 
 
 

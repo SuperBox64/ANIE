@@ -206,11 +206,14 @@ struct LLMChatView: View {
         }
     }
     
+
+    // MARK: BADASS
+
     private func sendMessage() {
         guard !userInput.isEmpty && !viewModel.isProcessing else { return }
         let messageToSend = userInput
         userInput = ""  // Clear input immediately
-        
+        print(userInput)
         Task {
             await viewModel.processUserInput(messageToSend)
         }
