@@ -47,14 +47,16 @@ class MessagePreprocessor {
             return false
         }
         
-        // Skip caching for programming questions (existing logic)
+        // Skip caching for programming questions
         if message.contains("{") || message.contains("}") ||
            message.contains("func ") || message.contains("class ") ||
-           message.contains("struct ") || message.contains("import ") {
+           message.contains("struct ") || message.contains("import ") ||
+           programmingKeywords.contains(where: { lowercased.contains($0) }) {
             print("🚫 Skipping cache - Programming related query")
             return false
         }
         
+        // Cache everything else
         print("✅ Message eligible for caching")
         return true
     }

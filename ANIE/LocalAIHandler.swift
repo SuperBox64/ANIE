@@ -50,8 +50,18 @@ class LocalAIHandler {
         // Generate a local response based on the query type
         let response = generateLocalResponse(for: query)
         
-        // Skip caching for Local AI responses, programming queries, and AI/ML queries
-        print("🧠 LocalAI: Response generated (not cached)")
+        // Cache all responses that aren't programming or AI/ML related
+        if !isProgrammingQuery && !isAIMLQuery {
+            do {
+                try cache.cacheResponse(query: query, response: response)
+                print("🧠 LocalAI: Cached response")
+            } catch {
+                print("🧠 LocalAI: Failed to cache response: \(error)")
+            }
+        } else {
+            print("🧠 LocalAI: Response not cached - Programming/AI/ML query")
+        }
+        
         return response
     }
     

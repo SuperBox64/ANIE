@@ -157,6 +157,29 @@ class ChatManager {
             ========================
             """
             
+        case "!ml cache":
+            return """
+            === Cache System Status ===
+            
+            📊 Cache Configuration:
+            • Total Cached Items: \(cache.getCacheSize())
+            • Similarity Threshold: \(String(format: "%.2f", cache.threshold))
+            • Storage Type: Persistent (UserDefaults)
+            
+            🤖 BERT Integration:
+            • Model Status: \(EmbeddingsService.shared.generator != nil ? "Active" : "Inactive")
+            • Total Operations: \(EmbeddingsService.shared.usageCount)
+            • Vector Dimension: \(EmbeddingsService.shared.generator?.modelInfo()["embeddingDimension"] ?? 0)
+            
+            ⚙️ Cache Behavior:
+            • Skips ML/AI Queries: Yes
+            • Skips Programming Queries: Yes
+            • Uses Semantic Search: Yes
+            • Word Overlap Required: 70%
+            
+            ========================
+            """
+            
         default:
             return "Unknown ML command. Use !ml help to see available commands."
         }
