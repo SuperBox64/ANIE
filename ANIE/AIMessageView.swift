@@ -12,12 +12,9 @@ struct AIMessageView: View {
             let blocks = extractCodeBlocks(from: message.content)
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
-                    if block.isCode {
-                        let isSwift = block.content.contains("func ") || 
-                                    block.content.contains("class ") || 
-                                    block.content.contains("struct ") ||
-                                    block.content.contains("let ") ||
-                                    block.content.contains("var ")
+                    if block.isCode && !block.content.contains("#") {
+                        let swiftKeywords = ["func ", "class ", "struct ", "print", "var ", "enum ", "case ", "Swift ", "Hello, World!"]
+                        let isSwift = swiftKeywords.contains { block.content.contains($0) }
                         
                         ZStack(alignment: .bottomTrailing) {
                             Text(formatSwiftCode(block.content, colorScheme: colorScheme))
@@ -30,7 +27,7 @@ struct AIMessageView: View {
                                 .padding(.trailing, 3)
                                 .padding(.bottom, 3)
                         }
-                        .background(isSwift ? 
+                        .background(isSwift ?
                             (colorScheme == .dark ? Color.black : Color.white) :
                             Color(nsColor: NSColor.windowBackgroundColor).opacity(0.3))
                         .overlay(
@@ -41,8 +38,8 @@ struct AIMessageView: View {
                         .padding(6)
                     } else {
                         Text(formatMarkdown(block.content))
-                        .textSelection(.enabled)
-                        .foregroundColor(Color(nsColor: NSColor.labelColor))
+                            .textSelection(.enabled)
+                            .foregroundColor(Color(nsColor: NSColor.labelColor))
                     }
                 }
                 .transaction { transaction in

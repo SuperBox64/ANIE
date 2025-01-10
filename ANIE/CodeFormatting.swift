@@ -158,6 +158,80 @@ extension View {
     }
 }
 
+
+public func formatMarkdown(_ text: String) -> AttributedString {
+    // Check if this is an error message
+    if text.hasPrefix("Error:") || text.contains("API Error:") {
+        var errorAttr = AttributedString(text)
+        errorAttr.foregroundColor = .white
+        return errorAttr
+    }
+    
+    if var processed = try? AttributedString(markdown: text, options: .init(
+        allowsExtendedAttributes: true,
+        interpretedSyntax: .inlineOnly,
+        failurePolicy: .returnPartiallyParsedIfPossible
+    )) {
+        // Process markdown elements
+        let headerMarkers = ["#### ", "### ", "## ", "# "]
+        for marker in headerMarkers {
+            while let range = processed.range(of: marker) {
+                processed.replaceSubrange(range, with: AttributedString(""))
+            }
+        }
+        
+        // Replace list markers with bullets
+        while let range = processed.range(of: "- ") {
+            var bulletAttr = AttributedString("• ")
+            bulletAttr.font = .systemFont(ofSize: NSFont.systemFontSize + 2)
+            processed.replaceSubrange(range, with: bulletAttr)
+        }
+        
+        // Process lines with colons (non-numbered)
+        let lines = text.components(separatedBy: .newlines)
+        
+        // First, handle non-numbered items with colons
+        let colonPattern = #"^(?!\s*\d+\.)(.+?):\s*$"#  // Matches lines ending with colon, but not numbered lists
+        let colonRegex = try? NSRegularExpression(pattern: colonPattern, options: [.anchorsMatchLines])
+        
+        for line in lines {
+            if let match = colonRegex?.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count)),
+               let contentRange = Range(match.range(at: 1), in: line) {
+                let content = String(line[contentRange])
+                if let range = processed.range(of: content + ":") {
+                    var headerAttr = AttributedString(content)
+                    headerAttr.inlinePresentationIntent = .stronglyEmphasized
+                    headerAttr.font = .systemFont(ofSize: NSFont.systemFontSize + 2)
+                    processed.replaceSubrange(range, with: headerAttr)
+                }
+            }
+        }
+        
+        // Then handle numbered lists
+        let numberedPattern = #"^\s*\d+\.\s+(.+?)(?::|(?:\s*$))"#  // Match content up to colon or end of line
+        let numberedRegex = try? NSRegularExpression(pattern: numberedPattern, options: [.anchorsMatchLines])
+        
+        for line in lines {
+            if let match = numberedRegex?.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count)),
+               let contentRange = Range(match.range(at: 1), in: line) {
+                let content = String(line[contentRange])
+                if let range = processed.range(of: content + ":") {
+                    // If we found it with the colon, replace it
+                    var boldAttr = AttributedString(content)
+                    boldAttr.inlinePresentationIntent = .stronglyEmphasized
+                    processed.replaceSubrange(range, with: boldAttr)
+                } else if let range = processed.range(of: content) {
+                    // If we found it without the colon, just make it bold
+                    processed[range].inlinePresentationIntent = .stronglyEmphasized
+                }
+            }
+        }
+        
+        return processed
+    }
+    
+    return AttributedString(text)
+}
 func extractCodeBlocks(from text: String) -> [(content: String, isCode: Bool)] {
     var blocks: [(String, Bool)] = []
     var currentText = ""
