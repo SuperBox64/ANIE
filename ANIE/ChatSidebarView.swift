@@ -208,9 +208,9 @@ struct ChatSidebarView: View {
                                     }
                             } else if viewModel.loadedSessions.contains(session.id) {
                                 Image(systemName: "checkmark")
-                                    .font(.system(size: 12))
+                                    .font(.system(size: 13, weight: .bold))
                                     .foregroundColor(session.id == viewModel.selectedSessionId ? .white : .green)
-                                    .opacity(0.7)
+                                    .opacity(0.9)
                                     .onAppear {
                                         // Add delay before showing checkmark
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

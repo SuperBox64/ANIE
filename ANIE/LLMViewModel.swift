@@ -181,8 +181,8 @@ class LLMViewModel: ObservableObject {
             isLoadingSession = true
             
             Task { @MainActor in
-                // Simulate brief loading time
-                try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5 seconds
+                // Brief loading time for visual feedback
+                try? await Task.sleep(nanoseconds: 100_000_000)  // 0.1 seconds
                 
                 // Only stop loading and show checkmark if we're not processing a message
                 if !isProcessing {
@@ -204,8 +204,18 @@ class LLMViewModel: ObservableObject {
         guard currentSession != nil else { return }
         
         isProcessing = true
-        isLoadingSession = true  // Show spinner while processing
+        isLoadingSession = true
         processingProgress = 0.0
+        
+        // Start progress animation
+        Task {
+            // Quickly animate to 20% during initial processing
+            for i in 1...20 {
+                if !isProcessing { break }
+                try? await Task.sleep(nanoseconds: 2_000_000) // 0.002s
+                processingProgress = Double(i) / 100.0
+            }
+        }
         
         // Check if the input is an image path
         if input.starts(with: "![") && input.contains("](") {
@@ -213,20 +223,40 @@ class LLMViewModel: ObservableObject {
             let message = Message(content: input, isUser: true, imageData: imageData)
             addMessage(message)
             
-            isProcessing = false
-            isLoadingSession = false  // Hide spinner
-            if let id = selectedSessionId {
-                loadedSessions.insert(id)  // Show checkmark
-            }
             processingProgress = 1.0
+            isProcessing = false
+            isLoadingSession = false
+            if let id = selectedSessionId {
+                loadedSessions.insert(id)
+            }
             return
         }
         
         let message = Message(content: input, isUser: true)
         addMessage(message)
         
+        // Progress to 40% after user message is added
+        processingProgress = 0.4
+        
         do {
+            // Start progress animation for API/BERT processing
+            let progressTask = Task {
+                // Animate from 40% to 90% during processing
+                for i in 40...90 {
+                    if !isProcessing { break }
+                    try? await Task.sleep(nanoseconds: 10_000_000) // 0.01s per percent
+                    processingProgress = Double(i) / 100.0
+                }
+            }
+            
             let response = try await chatManager.processMessage(input)
+            
+            // Cancel the progress animation task
+            progressTask.cancel()
+            
+            // Progress to 95% after getting response
+            processingProgress = 0.95
+            
             let usedBERT = response.contains("[Retrieved using BERT]")
             let usedLocalAI = response.contains("[Using LocalAI]")
             let cleanResponse = response
@@ -240,11 +270,21 @@ class LLMViewModel: ObservableObject {
                 usedLocalAI: usedLocalAI
             )
             
+            // Progress to 100% right before adding message
+            processingProgress = 1.0
+            
             addMessage(responseMessage)
+            
+            // Complete immediately
+            isProcessing = false
+            isLoadingSession = false
+            if let id = selectedSessionId {
+                loadedSessions.insert(id)
+            }
+            
         } catch {
             print("Error processing message: \(error)")
             
-            // Format error message
             let errorMessage: String
             switch error {
             case let ChatError.serverError(code, message):
@@ -264,15 +304,18 @@ class LLMViewModel: ObservableObject {
                 isUser: false,
                 isError: true
             )
+            
+            // Set to 100% before showing error
+            processingProgress = 1.0
             addMessage(responseMessage)
+            
+            // Complete immediately
+            isProcessing = false
+            isLoadingSession = false
+            if let id = selectedSessionId {
+                loadedSessions.insert(id)
+            }
         }
-        
-        isProcessing = false
-        isLoadingSession = false  // Hide spinner
-        if let id = selectedSessionId {
-            loadedSessions.insert(id)  // Show checkmark
-        }
-        processingProgress = 1.0
     }
     
     private func extractImageData(from input: String) -> Data? {
