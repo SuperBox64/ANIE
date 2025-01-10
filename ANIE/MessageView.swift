@@ -234,10 +234,12 @@ struct MessageView: View {
                 let font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
                 codeAttr.font = .init(font)
                 
-                // Add padding around code blocks
-                result += AttributedString("\n")
-                result += codeAttr
-                result += AttributedString("\n")
+                // Create a container for code block
+                var containerAttr = AttributedString("\n")
+                containerAttr += codeAttr
+                containerAttr += AttributedString("\n")
+                
+                result += containerAttr
             }
         }
         
@@ -271,7 +273,7 @@ struct MessageView: View {
                 if message.isError {
                     // Error message - always red background with white text
                     VStack(alignment: .trailing, spacing: 0) {
-                        Text(message.content)  // No markdown formatting for errors
+                        Text(message.content)
                             .textSelection(.enabled)
                             .foregroundColor(.white)
                             .padding(.horizontal)
@@ -286,21 +288,59 @@ struct MessageView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     // Regular message with markdown formatting
-                    VStack(alignment: .trailing, spacing: 0) {
-                        Text(formatMarkdown(message.content))
-                            .textSelection(.enabled)
-                            .foregroundColor(message.isUser ? .white : Color(nsColor: NSColor.labelColor))
-                            .padding(.horizontal)
-                            .padding(.top, 4)
-                            .padding(.bottom, 7)
-                        
-                        copyButton(for: message.content)
-                            .padding(.trailing, 3)
-                            .padding(.bottom, 3)
+                    VStack(alignment: .leading, spacing: 4) {
+                        let blocks = extractCodeBlocks(from: message.content)
+                        ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                            Group {
+                                if block.isCode {
+                                    let isSwift = block.content.contains("func ") || 
+                                                block.content.contains("class ") || 
+                                                block.content.contains("struct ") ||
+                                                block.content.contains("let ") ||
+                                                block.content.contains("var ")
+                                    
+                                    ZStack(alignment: .bottomTrailing) {
+                                        Text(formatSwiftCode(block.content))
+                                            .textSelection(.enabled)
+                                            .padding(6)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        
+                                        copyButton(for: block.content, index: index)
+                                            .padding(.trailing, 3)
+                                            .padding(.bottom, 3)
+                                    }
+                                    .background(isSwift ? 
+                                        (colorScheme == .dark ? Color.black : Color.white) :
+                                        Color(nsColor: NSColor.windowBackgroundColor).opacity(0.3))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                    )
+                                    .cornerRadius(8)
+                                    .padding(6)
+                                } else {
+                                    Text(try! AttributedString(markdown: block.content, options: .init(
+                                        allowsExtendedAttributes: true,
+                                        interpretedSyntax: .inlineOnlyPreservingWhitespace,
+                                        failurePolicy: .returnPartiallyParsedIfPossible
+                                    )))
+                                    .textSelection(.enabled)
+                                    .foregroundColor(message.isUser ? .white : Color(nsColor: NSColor.labelColor))
+                                }
+                            }
+                            .transaction { transaction in
+                                transaction.animation = nil
+                            }
+                        }
                     }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 6)
                     .background(message.isUser ? Color.blue : Color(nsColor: NSColor.windowBackgroundColor))
                     .cornerRadius(11)
                     .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
+                    .transaction { transaction in
+                        transaction.animation = nil
+                    }
                 }
             }
             .padding(.horizontal, 7)
@@ -312,6 +352,9 @@ struct MessageView: View {
                     .frame(width: 40, alignment: .leading)
             }
         }
+        .transaction { transaction in
+            transaction.animation = nil
+        }
     }
     
     private func copyButton(for content: String, index: Int? = nil) -> some View {
@@ -322,22 +365,29 @@ struct MessageView: View {
             pasteboard.clearContents()
             pasteboard.setString(content, forType: .string)
             
-            if let idx = index {
-                copiedIndex = idx
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    copiedIndex = nil
-                }
-            } else {
-                isCopied = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    isCopied = false
+            withAnimation(nil) {  // Disable animation for state changes
+                if let idx = index {
+                    copiedIndex = idx
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation(nil) {
+                            copiedIndex = nil
+                        }
+                    }
+                } else {
+                    isCopied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation(nil) {
+                            isCopied = false
+                        }
+                    }
                 }
             }
         }) {
             ZStack {
                 // Background with border
                 RoundedRectangle(cornerRadius: 7)
-                    .fill(Color.black.opacity(0.15))
+                    .strokeBorder(Color.black, lineWidth: 2)
+                    .background(RoundedRectangle(cornerRadius: 7).fill(Color.black.opacity(0.15)))
                     .frame(width: 32, height: 32)
                 
                 // Icon
@@ -345,7 +395,10 @@ struct MessageView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(isCopiedState ? Color.green : .white)
             }
-            .contentShape(Rectangle())  // Make entire area clickable
+            .contentShape(Rectangle())
+            .transaction { transaction in
+                transaction.animation = nil
+            }
         }
         .buttonStyle(PlainButtonStyle())
     }

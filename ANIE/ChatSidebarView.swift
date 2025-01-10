@@ -185,9 +185,7 @@ struct ChatSidebarView: View {
             List(viewModel.sessions) { session in
                 Button(action: {
                     log("Button tapped for session: \(session.id)")
-                    withAnimation {
-                        viewModel.selectSession(id: session.id)
-                    }
+                    viewModel.selectSession(id: session.id)
                 }) {
                     // Wrap everything in a full-width HStack
                     HStack(spacing: 0) {
@@ -203,18 +201,21 @@ struct ChatSidebarView: View {
                             
                             if viewModel.isLoadingSession && session.id == viewModel.selectedSessionId {
                                 ProgressView()
-                                    .scaleEffect(0.7)
-                                    .frame(width: 20, height: 20)
+                                    .scaleEffect(0.5)
+                                    .frame(width: 16, height: 16)
                                     .onAppear {
                                         log("Loading indicator appeared for session: \(session.id)")
                                     }
                             } else if viewModel.loadedSessions.contains(session.id) {
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 12))
-                                    .foregroundColor(.green)
+                                    .foregroundColor(session.id == viewModel.selectedSessionId ? .white : .green)
                                     .opacity(0.7)
                                     .onAppear {
-                                        log("Checkmark appeared for session: \(session.id)")
+                                        // Add delay before showing checkmark
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                            log("Checkmark appeared for session: \(session.id)")
+                                        }
                                     }
                             }
                         }

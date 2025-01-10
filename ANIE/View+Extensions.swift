@@ -8,6 +8,9 @@ extension View {
     ) -> some View {
         ZStack(alignment: alignment) {
             placeholder().opacity(shouldShow ? 1 : 0)
+                .transaction { transaction in
+                    transaction.animation = nil
+                }
             self
         }
     }

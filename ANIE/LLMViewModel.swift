@@ -13,6 +13,8 @@ class LLMViewModel: ObservableObject {
     
     private let modelHandler = LLMModelHandler()
     private let sessionsKey = "chatSessions"
+    private let selectedSessionKey = "selectedSession"
+    private let loadedSessionsKey = "loadedSessions"
     private let credentialsManager = CredentialsManager()
     private var chatManager: ChatManager
     
@@ -60,24 +62,35 @@ class LLMViewModel: ObservableObject {
     
     private func loadSessions() {
         log("Starting loadSessions()")
-        if let data = UserDefaults.standard.data(forKey: sessionsKey) {
-            log("Found data in UserDefaults")
-            if let savedSessions = try? JSONDecoder().decode([ChatSession].self, from: data) {
-                log("Successfully decoded \(savedSessions.count) sessions")
-                sessions = savedSessions
-                
-                if let firstSession = sessions.first {
-                    log("Loading first session: \(firstSession.id)")
-                    selectedSessionId = firstSession.id
-                    Task {
-                        log("Starting initial session load task")
-                        await loadSessionData(firstSession.id)
-                    }
-                } else {
-                    log("No sessions available after loading")
+        
+        // Load sessions
+        if let data = UserDefaults.standard.data(forKey: sessionsKey),
+           let savedSessions = try? JSONDecoder().decode([ChatSession].self, from: data) {
+            log("Successfully decoded \(savedSessions.count) sessions")
+            sessions = savedSessions
+            
+            // Restore selected session
+            if let selectedId = UserDefaults.standard.string(forKey: selectedSessionKey),
+               let selectedUUID = UUID(uuidString: selectedId) {
+                log("Restoring selected session: \(selectedId)")
+                selectedSessionId = selectedUUID
+            } else if let firstSession = sessions.first {
+                log("No saved selection, defaulting to first session: \(firstSession.id)")
+                selectedSessionId = firstSession.id
+            }
+            
+            // Restore loaded sessions
+            if let loadedData = UserDefaults.standard.array(forKey: loadedSessionsKey) as? [String] {
+                loadedSessions = Set(loadedData.compactMap { UUID(uuidString: $0) })
+                log("Restored loaded sessions: \(loadedSessions.count)")
+            }
+            
+            // Load the selected session's data
+            if let selectedId = selectedSessionId {
+                Task {
+                    log("Loading selected session data")
+                    await loadSessionData(selectedId, forceLoad: true)
                 }
-            } else {
-                log("❌ Failed to decode sessions data")
             }
         } else {
             log("No sessions data found in UserDefaults")
@@ -118,9 +131,19 @@ class LLMViewModel: ObservableObject {
     }
     
     private func saveSessions() {
+        // Save sessions
         if let data = try? JSONEncoder().encode(sessions) {
             UserDefaults.standard.set(data, forKey: sessionsKey)
         }
+        
+        // Save selected session
+        if let selectedId = selectedSessionId {
+            UserDefaults.standard.set(selectedId.uuidString, forKey: selectedSessionKey)
+        }
+        
+        // Save loaded sessions
+        let loadedSessionsArray = loadedSessions.map { $0.uuidString }
+        UserDefaults.standard.set(loadedSessionsArray, forKey: loadedSessionsKey)
     }
     
     func addSession(subject: String) {
@@ -151,23 +174,22 @@ class LLMViewModel: ObservableObject {
     private var lastRestoredSession: UUID?
     
     func selectSession(id: UUID) {
-        log("selectSession called with id: \(id)")
-        log("Current selectedSessionId: \(String(describing: selectedSessionId))")
-        
-        guard selectedSessionId != id else {
-            log("Session already selected, skipping")
-            return
-        }
-        
-        log("Updating selectedSessionId to: \(id)")
         selectedSessionId = id
         
-        // Force load even if already loaded
-        Task {
-            log("Starting loadSessionData task")
-            await loadSessionData(id, forceLoad: true)
-            log("Triggering scroll to bottom")
-            ScrollManager.shared.scrollToBottom()
+        // Only show loading if we're not already processing a message
+        if !isProcessing {
+            isLoadingSession = true
+            
+            Task { @MainActor in
+                // Simulate brief loading time
+                try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5 seconds
+                
+                // Only stop loading and show checkmark if we're not processing a message
+                if !isProcessing {
+                    isLoadingSession = false
+                    loadedSessions.insert(id)
+                }
+            }
         }
     }
     
@@ -175,7 +197,6 @@ class LLMViewModel: ObservableObject {
         guard let index = sessions.firstIndex(where: { $0.id == selectedSessionId }) else { return }
         sessions[index].messages.append(message)
         saveSessions()
-        ScrollManager.shared.scrollToBottom()
     }
     
     @MainActor
@@ -183,6 +204,7 @@ class LLMViewModel: ObservableObject {
         guard currentSession != nil else { return }
         
         isProcessing = true
+        isLoadingSession = true  // Show spinner while processing
         processingProgress = 0.0
         
         // Check if the input is an image path
@@ -192,7 +214,16 @@ class LLMViewModel: ObservableObject {
             addMessage(message)
             
             isProcessing = false
+            isLoadingSession = false  // Hide spinner
+            if let id = selectedSessionId {
+                loadedSessions.insert(id)  // Show checkmark
+            }
             processingProgress = 1.0
+            
+            // Scroll after image message is processed
+            DispatchQueue.main.async {
+                ScrollManager.shared.scrollToBottom()
+            }
             return
         }
         
@@ -242,7 +273,16 @@ class LLMViewModel: ObservableObject {
         }
         
         isProcessing = false
+        isLoadingSession = false  // Hide spinner
+        if let id = selectedSessionId {
+            loadedSessions.insert(id)  // Show checkmark
+        }
         processingProgress = 1.0
+        
+        // Scroll after all processing is complete
+        DispatchQueue.main.async {
+            ScrollManager.shared.scrollToBottom()
+        }
     }
     
     private func extractImageData(from input: String) -> Data? {

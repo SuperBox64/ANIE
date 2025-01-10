@@ -56,18 +56,14 @@ struct LLMChatView: View {
                         .onAppear {
                             scrollProxy = proxy
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                withAnimation {
-                                    proxy.scrollTo("bottom", anchor: .bottom)
-                                }
+                                proxy.scrollTo("bottom", anchor: .bottom)
                             }
                         }
                         .onChange(of: viewModel.selectedSessionId) { oldId, newId in
                             Task { @MainActor in
                                 if let lastMessage = viewModel.currentSession?.messages.last {
                                     await MainActor.run {
-                                        withAnimation {
-                                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                                        }
+                                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
                                     }
                                 }
                             }
@@ -81,9 +77,7 @@ struct LLMChatView: View {
                         if newValue {
                             Task { @MainActor in
                                 await MainActor.run {
-                                    withAnimation {
-                                        proxy.scrollTo("bottom", anchor: .bottom)
-                                    }
+                                    proxy.scrollTo("bottom", anchor: .bottom)
                                 }
                             }
                         }
