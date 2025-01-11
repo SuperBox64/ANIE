@@ -12,9 +12,9 @@ struct AIMessageView: View {
             let blocks = extractCodeBlocks(from: message.content)
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
-                    if block.isCode && !block.content.contains("#") {
-                        let swiftKeywords = ["func ", "class ", "struct ", "print", "var ", "enum ", "case ", "Swift ", "Hello, World!"]
-                        let isSwift = swiftKeywords.contains { block.content.contains($0) }
+                    if block.isCode  {
+                        ////let swiftKeywords = ["func ", "class ", "struct ", "print", "var ", "enum ", "case ", "Swift ", "Hello, World!"]
+                        let isCode = true // swiftKeywords.contains { block.content.contains($0) }
                         
                         ZStack(alignment: .bottomTrailing) {
                             Text(formatSwiftCode(block.content, colorScheme: colorScheme))
@@ -27,7 +27,7 @@ struct AIMessageView: View {
                                 .padding(.trailing, 3)
                                 .padding(.bottom, 3)
                         }
-                        .background(isSwift ?
+                        .background(isCode ?
                             (colorScheme == .dark ? Color.black : Color.white) :
                             Color(nsColor: NSColor.windowBackgroundColor).opacity(0.3))
                         .overlay(
