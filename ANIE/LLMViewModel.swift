@@ -49,10 +49,6 @@ class LLMViewModel: ObservableObject {
         )
         
         loadSessions()
-        // Create default session if none exist
-        if sessions.isEmpty {
-            addSession(subject: "New Chat")
-        }
     }
     
     // Add logging helper
@@ -74,9 +70,11 @@ class LLMViewModel: ObservableObject {
                let selectedUUID = UUID(uuidString: selectedId) {
                 log("Restoring selected session: \(selectedId)")
                 selectedSessionId = selectedUUID
+                chatManager.setCurrentSession(selectedUUID)  // Set current session in ChatManager
             } else if let firstSession = sessions.first {
                 log("No saved selection, defaulting to first session: \(firstSession.id)")
                 selectedSessionId = firstSession.id
+                chatManager.setCurrentSession(firstSession.id)  // Set current session in ChatManager
             }
             
             // Restore loaded sessions
@@ -150,6 +148,7 @@ class LLMViewModel: ObservableObject {
         let newSession = ChatSession(subject: subject)
         sessions.append(newSession)
         selectedSessionId = newSession.id
+        chatManager.setCurrentSession(newSession.id)
         loadedSessions.insert(newSession.id)  // Mark as loaded since it's new
         modelHandler.clearHistory()
         saveSessions()
@@ -175,6 +174,7 @@ class LLMViewModel: ObservableObject {
     
     func selectSession(id: UUID) {
         selectedSessionId = id
+        chatManager.setCurrentSession(id)
         
         // Only show loading if we're not already processing a message
         if !isProcessing {
@@ -183,6 +183,11 @@ class LLMViewModel: ObservableObject {
             Task { @MainActor in
                 // Brief loading time for visual feedback
                 try? await Task.sleep(nanoseconds: 100_000_000)  // 0.1 seconds
+                
+                // Restore conversation history for the selected session
+                if let session = sessions.first(where: { $0.id == id }) {
+                    modelHandler.restoreConversation(from: session.messages)
+                }
                 
                 // Only stop loading and show checkmark if we're not processing a message
                 if !isProcessing {

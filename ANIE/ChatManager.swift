@@ -11,6 +11,7 @@ class ChatManager {
     private let cache: ResponseCache
     private let apiClient: ChatGPTClient
     private let localAI: LocalAIHandler
+    private var currentSessionId: UUID?
     
     init(preprocessor: MessagePreprocessor, apiClient: ChatGPTClient) {
         self.preprocessor = preprocessor
@@ -24,7 +25,15 @@ class ChatManager {
         print("============================")
     }
     
+    func setCurrentSession(_ sessionId: UUID) {
+        self.currentSessionId = sessionId
+    }
+    
     func processMessage(_ message: String) async throws -> String {
+        guard let sessionId = currentSessionId else {
+            throw ChatError.noActiveSession
+        }
+        
         // Handle ML commands first
         if message.lowercased().hasPrefix("!ml") {
             return handleMLCommand(message.lowercased())
@@ -37,7 +46,7 @@ class ChatManager {
             await MainActor.run {
                 print("🧠 Using LocalAI for query: \(message)")
             }
-            let response = try await localAI.generateResponse(for: message)
+            let response = try await localAI.generateResponse(for: message, sessionId: sessionId)
             await MainActor.run {
                 print("🧠 LocalAI generated response")
             }
@@ -51,7 +60,7 @@ class ChatManager {
                 await MainActor.run {
                     print("🔍 Checking cache for: \(message)")
                 }
-                if let cachedResponse = try cache.findSimilarResponse(for: message) {
+                if let cachedResponse = try cache.findSimilarResponse(for: message, sessionId: sessionId) {
                     await MainActor.run {
                         print("✨ Cache hit! Using cached response")
                     }
@@ -67,7 +76,7 @@ class ChatManager {
             
             // Cache if appropriate
             if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) {
-                try cache.cacheResponse(query: message, response: response)
+                try cache.cacheResponse(query: message, response: response, sessionId: sessionId)
                 await MainActor.run {
                     print("📥 Cached new response")
                 }
@@ -81,7 +90,7 @@ class ChatManager {
                 await MainActor.run {
                     print("🌐 Network offline, falling back to Local AI")
                 }
-                let response = try await localAI.generateResponse(for: message)
+                let response = try await localAI.generateResponse(for: message, sessionId: sessionId)
                 return response + "\n[Using LocalAI - Network Offline]"
             }
             throw error

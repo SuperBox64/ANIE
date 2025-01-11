@@ -11,7 +11,7 @@ class LocalAIHandler {
         self.embeddingGenerator = EmbeddingsService.shared.generator
     }
     
-    func generateResponse(for query: String) async throws -> String {
+    func generateResponse(for query: String, sessionId: UUID) async throws -> String {
         print("🧠 LocalAI processing query...")
         
         // Check for special queries first
@@ -36,7 +36,7 @@ class LocalAIHandler {
         
         if !isProgrammingQuery && !isAIMLQuery {
             do {
-                if let similarResponse = try cache.findSimilarResponse(for: query) {
+                if let similarResponse = try cache.findSimilarResponse(for: query, sessionId: sessionId) {
                     print("🧠 LocalAI: Found cached response")
                     return similarResponse
                 }
@@ -53,7 +53,7 @@ class LocalAIHandler {
         // Cache all responses that aren't programming or AI/ML related
         if !isProgrammingQuery && !isAIMLQuery {
             do {
-                try cache.cacheResponse(query: query, response: response)
+                try cache.cacheResponse(query: query, response: response, sessionId: sessionId)
                 print("🧠 LocalAI: Cached response")
             } catch {
                 print("🧠 LocalAI: Failed to cache response: \(error)")

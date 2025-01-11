@@ -1,9 +1,40 @@
 import SwiftUI
 import AppKit
 
+
+class MessageObserver: ObservableObject {
+    static let shared = MessageObserver()
+    @Published private(set) var maxWidthX: CGFloat = 600
+    
+    init() {
+        // Set initial value
+        updateMaxWidth()
+        
+        // Observe window size changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowDidResize),
+            name: NSWindow.didResizeNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func windowDidResize(_ notification: Notification) {
+        updateMaxWidth()
+    }
+    
+    private func updateMaxWidth() {
+        if let windowWidth = NSApp.windows.first?.frame.size.width {
+            maxWidthX = windowWidth / 1.5
+        }
+    }
+}
+
+
 struct MessageView: View {
     let message: Message
-    
+    @StateObject private var messageObserver = MessageObserver.shared
+
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             if !message.isUser {
@@ -44,13 +75,13 @@ struct MessageView: View {
                 HStack (alignment: .top) {
                         Spacer()
                         UserMessageView(message: message)
-                        .frame(width: maxWidthX, alignment: .trailing)
+                        .frame(width: messageObserver.maxWidthX, alignment: .trailing)
                         .padding(.trailing, 5)
                 }
             } else {
                 HStack (alignment: .top) {
                     AIMessageView(message: message)
-                        .frame(width: maxWidthX, alignment: .leading)
+                        .frame(width:  messageObserver.maxWidthX, alignment: .leading)
                         .padding(.leading, 5)
                         Spacer()
                 }
@@ -73,14 +104,6 @@ struct MessageView: View {
 
 
       
-
-public var maxWidthX: CGFloat {
-    if let windowWidth = NSApp.windows.first?.frame.size.width {
-        return windowWidth / 2
-    }
-    return 600  // Default fallback width
-}
-
 
 
 

@@ -182,61 +182,75 @@ struct ChatSidebarView: View {
             .padding(.vertical, 8)
             
             // Sessions list
-            List(viewModel.sessions) { session in
-                Button(action: {
-                    log("Button tapped for session: \(session.id)")
-                    viewModel.selectSession(id: session.id)
-                }) {
-                    // Wrap everything in a full-width HStack
-                    HStack(spacing: 0) {
-                        HStack {
-                            Text(session.subject)
-                                .lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .onAppear {
-                                    log("Session view appeared: \(session.id)")
-                                    log("isLoadingSession: \(viewModel.isLoadingSession)")
-                                    log("loadedSessions: \(viewModel.loadedSessions)")
-                                }
-                            
-                            if viewModel.isLoadingSession && session.id == viewModel.selectedSessionId {
-                                ProgressView()
-                                    .scaleEffect(0.5)
-                                    .frame(width: 16, height: 16)
+            if viewModel.sessions.isEmpty {
+                VStack(spacing: 16) {
+                    Text("No Chat Sessions")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    
+                    Button("Create New Chat") {
+                        showingNewSessionAlert = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                List(viewModel.sessions) { session in
+                    Button(action: {
+                        log("Button tapped for session: \(session.id)")
+                        viewModel.selectSession(id: session.id)
+                    }) {
+                        // Wrap everything in a full-width HStack
+                        HStack(spacing: 0) {
+                            HStack {
+                                Text(session.subject)
+                                    .lineLimit(1)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                                     .onAppear {
-                                        log("Loading indicator appeared for session: \(session.id)")
+                                        log("Session view appeared: \(session.id)")
+                                        log("isLoadingSession: \(viewModel.isLoadingSession)")
+                                        log("loadedSessions: \(viewModel.loadedSessions)")
                                     }
-                            } else if viewModel.loadedSessions.contains(session.id) {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(session.id == viewModel.selectedSessionId ? .white : .green)
-                                    .opacity(0.9)
-                                    .onAppear {
-                                        // Add delay before showing checkmark
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                            log("Checkmark appeared for session: \(session.id)")
+                                
+                                if viewModel.isLoadingSession && session.id == viewModel.selectedSessionId {
+                                    ProgressView()
+                                        .scaleEffect(0.5)
+                                        .frame(width: 16, height: 16)
+                                        .onAppear {
+                                            log("Loading indicator appeared for session: \(session.id)")
                                         }
-                                    }
+                                } else if viewModel.loadedSessions.contains(session.id) {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(session.id == viewModel.selectedSessionId ? .white : .green)
+                                        .opacity(0.9)
+                                        .onAppear {
+                                            // Add delay before showing checkmark
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                                log("Checkmark appeared for session: \(session.id)")
+                                            }
+                                        }
+                                }
                             }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .frame(maxWidth: .infinity) // Make inner HStack take full width
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(session.id == viewModel.selectedSessionId ? 
+                                        Color.blue : Color.clear)
+                            )
+                            .foregroundColor(session.id == viewModel.selectedSessionId ? .white : .primary)
+                            .contentShape(Rectangle()) // Make entire area clickable
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .frame(maxWidth: .infinity) // Make inner HStack take full width
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(session.id == viewModel.selectedSessionId ? 
-                                    Color.blue : Color.clear)
-                        )
-                        .foregroundColor(session.id == viewModel.selectedSessionId ? .white : .primary)
+                        .frame(maxWidth: .infinity) // Make outer HStack take full width
                         .contentShape(Rectangle()) // Make entire area clickable
                     }
-                    .frame(maxWidth: .infinity) // Make outer HStack take full width
-                    .contentShape(Rectangle()) // Make entire area clickable
+                    .buttonStyle(PlainButtonStyle())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets()) // Remove default list row insets
                 }
-                .buttonStyle(PlainButtonStyle())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets()) // Remove default list row insets
             }
         }
         .frame(width: 200)
@@ -266,6 +280,11 @@ struct ChatSidebarView: View {
                         sessionToDelete = nil
                     }
                 )
+            }
+        }
+        .onAppear {
+            if viewModel.sessions.isEmpty {
+                showingNewSessionAlert = true
             }
         }
     }

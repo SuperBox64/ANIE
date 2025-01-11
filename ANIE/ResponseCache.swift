@@ -5,6 +5,7 @@ struct CachedResponse: Codable {
     let response: String
     let embeddings: [Float]
     let timestamp: Date
+    let sessionId: UUID
 }
 
 class ResponseCache {
@@ -41,55 +42,116 @@ class ResponseCache {
         }
     }
     
-    func findSimilarResponse(for query: String) throws -> String? {
+    func findSimilarResponse(for query: String, sessionId: UUID) throws -> String? {
         guard let embeddings = self.embeddings else {
             print("⚠️ Embeddings generator not available")
             return nil
         }
         
         do {
-            let queryEmbeddings = try embeddings.generateEmbeddings(for: query)
-            let queryWords = query.lowercased().split(separator: " ").map(String.init)
+            // Normalize query by:
+            // 1. Trimming whitespace and standardizing line endings
+            // 2. Removing punctuation
+            // 3. Converting to lowercase
+            let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                                     .replacingOccurrences(of: "\r\n", with: "\n")
+                                     .replacingOccurrences(of: "\r", with: "\n")
+                                     .components(separatedBy: .punctuationCharacters).joined(separator: " ")
+                                     .lowercased()
+                                     .components(separatedBy: .whitespaces)
+                                     .filter { !$0.isEmpty }
+                                     .joined(separator: " ")
+            
+            let queryEmbeddings = try embeddings.generateEmbeddings(for: normalizedQuery)
+            let queryWords = normalizedQuery.split(separator: " ").map(String.init)
             
             // Find most similar cached response
             var bestMatch: (similarity: Float, response: String, query: String)? = nil
             
-            for cached in cache {
+            // Only look at responses from the same session
+            let sessionResponses = cache.filter { $0.sessionId == sessionId }
+            
+            for cached in sessionResponses {
+                // Normalize cached query the same way
+                let normalizedCachedQuery = cached.query.trimmingCharacters(in: .whitespacesAndNewlines)
+                                                      .replacingOccurrences(of: "\r\n", with: "\n")
+                                                      .replacingOccurrences(of: "\r", with: "\n")
+                                                      .components(separatedBy: .punctuationCharacters).joined(separator: " ")
+                                                      .lowercased()
+                                                      .components(separatedBy: .whitespaces)
+                                                      .filter { !$0.isEmpty }
+                                                      .joined(separator: " ")
+                
                 // Check length similarity first
-                let cachedWords = cached.query.lowercased().split(separator: " ").map(String.init)
+                let cachedWords = normalizedCachedQuery.split(separator: " ").map(String.init)
                 let lengthRatio = Double(min(queryWords.count, cachedWords.count)) / 
                                 Double(max(queryWords.count, cachedWords.count))
                 
-                // Skip if length difference is too large
-                if lengthRatio < (1.0 - maxLengthDifference) {
+                // Be more lenient with length differences
+                if lengthRatio < (1.0 - maxLengthDifference * 1.5) {
                     print("📏 Length mismatch:")
                     print("   Query words: \(queryWords.count)")
                     print("   Cached words: \(cachedWords.count)")
                     continue
                 }
                 
-                // Calculate word overlap
-                let commonWords = Set(queryWords).intersection(Set(cachedWords))
+                // Calculate word overlap with common variations
+                var commonWords = Set(queryWords).intersection(Set(cachedWords))
+                
+                // Add common word variations (you could expand this list)
+                let variations = [
+                    "dont": "don't",
+                    "cant": "can't",
+                    "whats": "what's",
+                    "im": "i'm",
+                    "ive": "i've",
+                    "id": "i'd",
+                    "youre": "you're",
+                    "youve": "you've",
+                    "youll": "you'll",
+                    "theyre": "they're",
+                    "wont": "won't",
+                    "isnt": "isn't",
+                    "arent": "aren't",
+                    "hasnt": "hasn't",
+                    "havent": "haven't",
+                    "couldnt": "couldn't",
+                    "wouldnt": "wouldn't",
+                    "shouldnt": "shouldn't"
+                ]
+                
+                // Add variations to common words
+                for word in queryWords {
+                    if let variation = variations[word] {
+                        if cachedWords.contains(variation) {
+                            commonWords.insert(word)
+                        }
+                    }
+                }
+                
                 let overlapRatio = Double(commonWords.count) / Double(queryWords.count)
                 
-                // Skip if word overlap is too low
-                if overlapRatio < 0.7 {  // At least 70% word overlap required
+                // Be more lenient with word overlap
+                if overlapRatio < 0.5 {  // Reduced from 0.7 to 0.5 (50% word overlap required)
                     print("📚 Low word overlap: \(Int(overlapRatio * 100))%")
                     continue
                 }
                 
                 let similarity = cosineSimilarity(queryEmbeddings, cached.embeddings)
                 print("📊 Cache comparison:")
-                print("   Query: '\(query)'")
-                print("   Cached: '\(cached.query)'")
+                print("   Query: '\(normalizedQuery)'")
+                print("   Cached: '\(normalizedCachedQuery)'")
                 print("   Similarity: \(similarity)")
                 print("   Word overlap: \(Int(overlapRatio * 100))%")
                 
-                if similarity > similarityThreshold {
+                // Be slightly more lenient with similarity threshold for high word overlap
+                let adjustedThreshold = overlapRatio > 0.8 ? similarityThreshold * 0.9 : similarityThreshold
+                
+                if similarity > adjustedThreshold {
                     if bestMatch == nil || similarity > bestMatch!.similarity {
-                        bestMatch = (similarity, cached.response, cached.query)
+                        bestMatch = (similarity, cached.response, normalizedCachedQuery)
                         print("✅ New best match found:")
-                        print("   Original query: '\(cached.query)'")
+                        print("   Original query: '\(normalizedCachedQuery)'")
                         print("   Similarity: \(similarity)")
                         print("   Word overlap: \(Int(overlapRatio * 100))%")
                     }
@@ -98,7 +160,7 @@ class ResponseCache {
             
             if let match = bestMatch {
                 print("🎯 Using cached response:")
-                print("   Query: '\(query)'")
+                print("   Query: '\(normalizedQuery)'")
                 print("   Matched with: '\(match.query)'")
                 print("   Similarity: \(match.similarity)")
                 return match.response + "\n[Retrieved using BERT]"
@@ -113,7 +175,7 @@ class ResponseCache {
         }
     }
     
-    func cacheResponse(query: String, response: String) throws {
+    func cacheResponse(query: String, response: String, sessionId: UUID) throws {
         guard let embeddings = self.embeddings else {
             print("⚠️ Cannot cache: embeddings generator not available")
             return
@@ -126,7 +188,8 @@ class ResponseCache {
                 query: query,
                 response: response,
                 embeddings: queryEmbeddings,
-                timestamp: Date()
+                timestamp: Date(),
+                sessionId: sessionId
             )
             
             cache.append(cachedResponse)

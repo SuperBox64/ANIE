@@ -158,7 +158,7 @@ extension View {
     }
 }
 
-
+@MainActor
 public func formatMarkdown(_ text: String) -> AttributedString {
     // Check if this is an error message
     if text.hasPrefix("Error:") || text.contains("API Error:") {
@@ -181,14 +181,16 @@ public func formatMarkdown(_ text: String) -> AttributedString {
         }
         
         // Replace list markers with bullets
+        let bulletFont = NSFont.systemFont(ofSize: NSFont.systemFontSize + 2)
         while let range = processed.range(of: "- ") {
             var bulletAttr = AttributedString("• ")
-            bulletAttr.font = .systemFont(ofSize: NSFont.systemFontSize + 2)
+            bulletAttr.font = bulletFont
             processed.replaceSubrange(range, with: bulletAttr)
         }
         
         // Process lines with colons (non-numbered)
         let lines = text.components(separatedBy: .newlines)
+        let headerFont = NSFont.systemFont(ofSize: NSFont.systemFontSize + 2)
         
         // First, handle non-numbered items with colons
         let colonPattern = #"^(?!\s*\d+\.)(.+?):\s*$"#  // Matches lines ending with colon, but not numbered lists
@@ -201,7 +203,7 @@ public func formatMarkdown(_ text: String) -> AttributedString {
                 if let range = processed.range(of: content + ":") {
                     var headerAttr = AttributedString(content)
                     headerAttr.inlinePresentationIntent = .stronglyEmphasized
-                    headerAttr.font = .systemFont(ofSize: NSFont.systemFontSize + 2)
+                    headerAttr.font = headerFont
                     processed.replaceSubrange(range, with: headerAttr)
                 }
             }
@@ -232,6 +234,7 @@ public func formatMarkdown(_ text: String) -> AttributedString {
     
     return AttributedString(text)
 }
+
 func extractCodeBlocks(from text: String) -> [(content: String, isCode: Bool)] {
     var blocks: [(String, Bool)] = []
     var currentText = ""

@@ -70,12 +70,12 @@ struct LLMChatView: View {
                             .frame(height: 1)
                             .id("bottom")
                     }
-                    .onChange(of: viewModel.currentSession?.messages.count) { _, _ in
+                    .onChange(of: viewModel.currentSession?.messages.count) { _ in
                         withAnimation {
                             proxy.scrollTo("bottom", anchor: .bottom)
                         }
                     }
-                    .onChange(of: viewModel.selectedSessionId) { _, _ in
+                    .onChange(of: viewModel.selectedSessionId) { _ in
                         withAnimation {
                             proxy.scrollTo("bottom", anchor: .bottom)
                         }
@@ -176,7 +176,7 @@ struct LLMChatView: View {
         .sheet(isPresented: $showingConfiguration) {
             ConfigurationView(shouldRefresh: $shouldRefreshCredentials)
         }
-        .onChange(of: shouldRefreshCredentials) { oldValue, newValue in
+        .onChange(of: shouldRefreshCredentials) { newValue in
             if newValue {
                 viewModel.refreshCredentials()
                 shouldRefreshCredentials = false

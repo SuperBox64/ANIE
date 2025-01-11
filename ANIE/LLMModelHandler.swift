@@ -5,6 +5,7 @@ enum ChatError: Error {
     case networkError(Error)
     case serverError(Int, String)
     case decodingError(Error)
+    case noActiveSession
 }
 
 class LLMModelHandler: ChatGPTClient {

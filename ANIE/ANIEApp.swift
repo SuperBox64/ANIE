@@ -86,7 +86,7 @@ struct ANIEApp: App {
     var body: some Scene {
         WindowGroup {
             LLMChatView(viewModel: viewModel)
-                .frame(minWidth: 400, minHeight: 300)
+                .frame(minWidth: 800, minHeight: 600)
                 .environmentObject(scrollManager)  // Inject scroll manager
                 .onAppear {
                     if !viewModel.hasValidCredentials {
@@ -96,7 +96,7 @@ struct ANIEApp: App {
                 .sheet(isPresented: $showingConfiguration) {
                     ConfigurationView(shouldRefresh: $shouldRefreshCredentials)
                 }
-                .onChange(of: shouldRefreshCredentials) { oldValue, newValue in
+                .onChange(of: shouldRefreshCredentials) { newValue in
                     if newValue {
                         viewModel.refreshCredentials()
                         shouldRefreshCredentials = false
