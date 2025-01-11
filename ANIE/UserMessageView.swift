@@ -56,7 +56,7 @@ struct UserMessageView: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 6)
-        .background(Color.blue)
+        .background(Color.accentColor)
         .cornerRadius(11)
         .frame(maxWidth: .infinity, alignment: .trailing)
     }

@@ -6,7 +6,7 @@ class MessageObserver: ObservableObject {
     static let shared = MessageObserver()
     @Published private(set) var maxWidthX: CGFloat = 600
     
-    init() {
+    private init() {
         // Set initial value
         updateMaxWidth()
         
@@ -20,7 +20,9 @@ class MessageObserver: ObservableObject {
     }
     
     @objc private func windowDidResize(_ notification: Notification) {
-        updateMaxWidth()
+        DispatchQueue.main.async {
+            self.updateMaxWidth()
+        }
     }
     
     private func updateMaxWidth() {
@@ -33,7 +35,7 @@ class MessageObserver: ObservableObject {
 
 struct MessageView: View {
     let message: Message
-    @StateObject private var messageObserver = MessageObserver.shared
+    @ObservedObject private var messageObserver = MessageObserver.shared
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {

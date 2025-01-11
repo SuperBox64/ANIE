@@ -55,7 +55,7 @@ struct RemoveLastMessageDialog: View {
                 .resizable()
                 .frame(width: 48, height: 48)
                 .padding(.top, 8)
-                .foregroundColor(.blue)
+                .foregroundColor(.accentColor)
             
             Text("Remove Last Message")
                 .font(.headline)
@@ -74,7 +74,49 @@ struct RemoveLastMessageDialog: View {
                     isPresented = false
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.blue)
+                .tint(.accentColor)
+                .keyboardShortcut(.return, modifiers: [])
+            }
+        }
+        .padding(20)
+        .frame(width: 300)
+        .background(Color(.windowBackgroundColor))
+        .cornerRadius(12)
+    }
+}
+
+struct DeleteSessionDialog: View {
+    @Binding var isPresented: Bool
+    let session: ChatSession
+    var onDelete: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // App Icon
+            Image(systemName: "trash.circle")
+                .resizable()
+                .frame(width: 48, height: 48)
+                .padding(.top, 8)
+                .foregroundColor(.red.opacity(0.7))
+            
+            Text("Delete Session")
+                .font(.headline)
+            
+            Text("Are you sure you want to delete '\(session.subject)' and its history?")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+            
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    isPresented = false
+                }
+                
+                Button("Delete") {
+                    onDelete()
+                    isPresented = false
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
                 .keyboardShortcut(.return, modifiers: [])
             }
         }
@@ -124,14 +166,14 @@ struct ChatSidebarView: View {
                 )) {
                     if let sessionId = sessionToDelete,
                        let session = viewModel.sessions.first(where: { $0.id == sessionId }) {
-                        RemoveLastMessageDialog(
+                        DeleteSessionDialog(
                             isPresented: .init(
                                 get: { sessionToDelete != nil },
                                 set: { if !$0 { sessionToDelete = nil } }
                             ),
                             session: session,
-                            onRemove: {
-                                viewModel.removeLastMessage(sessionId)
+                            onDelete: {
+                                viewModel.removeSession(id: session.id)
                                 sessionToDelete = nil
                             }
                         )
@@ -226,7 +268,7 @@ struct ChatSidebarView: View {
                             .background(
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(session.id == viewModel.selectedSessionId ? 
-                                        Color.blue : Color.clear)
+                                        Color.accentColor : Color.clear)
                             )
                             .foregroundColor(session.id == viewModel.selectedSessionId ? .white : .primary)
                             .contentShape(Rectangle()) // Make entire area clickable

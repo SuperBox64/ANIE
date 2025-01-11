@@ -86,7 +86,7 @@ struct LLMChatView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
                         Text("Enter some text (⌘↩ to send)")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.accentColor)
                             .font(.system(size: 12))
                             .padding(.leading, 22)
                         
@@ -125,9 +125,9 @@ struct LLMChatView: View {
                             Button(action: {
                                 showingClearDialog = true
                             }) {
-                                Image(systemName: "trash.circle.fill")
+                                Image(systemName: "arrow.uturn.backward.circle.fill")
                                     .font(.system(size: 32))
-                                    .foregroundColor(.red.opacity(0.8))
+                                    .foregroundColor(.accentColor.opacity(1.0))
                                     .background(Circle().fill(Color.white))
                                     .contentShape(Circle())
                             }
@@ -150,7 +150,7 @@ struct LLMChatView: View {
                                 Image(systemName: "arrow.up.circle.fill")
                                     .font(.system(size: 32))
                                     .foregroundColor(userInput.isEmpty || viewModel.isProcessing ? 
-                                        Color.black.opacity(0.5) : .blue)
+                                        Color.black.opacity(0.5) : .accentColor)
                                     .background(Circle().fill(Color.white))
                                     .contentShape(Circle())
                             }
