@@ -43,23 +43,24 @@ struct NewSessionDialog: View {
     }
 }
 
-struct DeleteSessionDialog: View {
+struct RemoveLastMessageDialog: View {
     @Binding var isPresented: Bool
     let session: ChatSession
-    var onDelete: () -> Void
+    var onRemove: () -> Void
     
     var body: some View {
         VStack(spacing: 16) {
             // App Icon
-            Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
+            Image(systemName: "arrow.uturn.backward.circle")
                 .resizable()
-                .frame(width: 64, height: 64)
+                .frame(width: 48, height: 48)
                 .padding(.top, 8)
+                .foregroundColor(.blue)
             
-            Text("Delete Session")
+            Text("Remove Last Message")
                 .font(.headline)
             
-            Text("Are you sure you want to delete '\(session.subject)' and its history?")
+            Text("Remove the last question and response from '\(session.subject)'?")
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
             
@@ -68,53 +69,12 @@ struct DeleteSessionDialog: View {
                     isPresented = false
                 }
                 
-                Button("Delete") {
-                    onDelete()
+                Button("Remove") {
+                    onRemove()
                     isPresented = false
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.red)
-                .keyboardShortcut(.return, modifiers: [])
-            }
-        }
-        .padding(20)
-        .frame(width: 300)
-        .background(Color(.windowBackgroundColor))
-        .cornerRadius(12)
-    }
-}
-
-struct ClearSessionDialog: View {
-    @Binding var isPresented: Bool
-    let session: ChatSession
-    var onClear: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            // App Icon
-            Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
-                .resizable()
-                .frame(width: 64, height: 64)
-                .padding(.top, 8)
-            
-            Text("Clear Chat History")
-                .font(.headline)
-            
-            Text("Are you sure you want to clear the chat history for '\(session.subject)'?")
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
-            
-            HStack(spacing: 12) {
-                Button("Cancel") {
-                    isPresented = false
-                }
-                
-                Button("Clear") {
-                    onClear()
-                    isPresented = false
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .tint(.blue)
                 .keyboardShortcut(.return, modifiers: [])
             }
         }
@@ -141,25 +101,6 @@ struct ChatSidebarView: View {
             // Header with add/remove buttons
             HStack {
                 Button(action: {
-                    showingNewSessionAlert = true
-                }) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.primary)
-                        .frame(width: 24, height: 24)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color(.controlBackgroundColor))
-                                .frame(width: 24, height: 24)
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .frame(width: 32, height: 32)
-                
-                Spacer()
-                
-                Button(action: {
                     if let selected = viewModel.selectedSessionId {
                         sessionToDelete = selected
                     }
@@ -177,6 +118,53 @@ struct ChatSidebarView: View {
                 }
                 .buttonStyle(.plain)
                 .frame(width: 32, height: 32)
+                .popover(isPresented: .init(
+                    get: { sessionToDelete != nil },
+                    set: { if !$0 { sessionToDelete = nil } }
+                )) {
+                    if let sessionId = sessionToDelete,
+                       let session = viewModel.sessions.first(where: { $0.id == sessionId }) {
+                        RemoveLastMessageDialog(
+                            isPresented: .init(
+                                get: { sessionToDelete != nil },
+                                set: { if !$0 { sessionToDelete = nil } }
+                            ),
+                            session: session,
+                            onRemove: {
+                                viewModel.removeLastMessage(sessionId)
+                                sessionToDelete = nil
+                            }
+                        )
+                    }
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    showingNewSessionAlert = true
+                }) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.primary)
+                        .frame(width: 24, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(.controlBackgroundColor))
+                                .frame(width: 24, height: 24)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .frame(width: 32, height: 32)
+                .popover(isPresented: $showingNewSessionAlert) {
+                    NewSessionDialog(
+                        isPresented: $showingNewSessionAlert,
+                        subject: $newSessionSubject,
+                        onSubmit: { subject in
+                            viewModel.addSession(subject: subject)
+                        }
+                    )
+                }
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
@@ -254,34 +242,6 @@ struct ChatSidebarView: View {
             }
         }
         .frame(width: 200)
-        .sheet(isPresented: $showingNewSessionAlert) {
-            NewSessionDialog(
-                isPresented: $showingNewSessionAlert,
-                subject: $newSessionSubject,
-                onSubmit: { subject in
-                    viewModel.addSession(subject: subject)
-                }
-            )
-        }
-        .sheet(isPresented: .init(
-            get: { sessionToDelete != nil },
-            set: { if !$0 { sessionToDelete = nil } }
-        )) {
-            if let sessionId = sessionToDelete,
-               let session = viewModel.sessions.first(where: { $0.id == sessionId }) {
-                DeleteSessionDialog(
-                    isPresented: .init(
-                        get: { sessionToDelete != nil },
-                        set: { if !$0 { sessionToDelete = nil } }
-                    ),
-                    session: session,
-                    onDelete: {
-                        viewModel.removeSession(id: session.id)
-                        sessionToDelete = nil
-                    }
-                )
-            }
-        }
         .onAppear {
             if viewModel.sessions.isEmpty {
                 showingNewSessionAlert = true

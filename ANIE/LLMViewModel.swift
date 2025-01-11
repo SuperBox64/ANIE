@@ -368,4 +368,25 @@ class LLMViewModel: ObservableObject {
             }
         }
     }
+    
+    func removeLastMessage(_ sessionId: UUID) {
+        if var session = sessions.first(where: { $0.id == sessionId }) {
+            // Remove last two messages (Q&A pair) if they exist
+            if session.messages.count >= 2 {
+                session.messages.removeLast(2)
+            } else if session.messages.count == 1 {
+                session.messages.removeLast()
+            }
+            
+            // Update session
+            if let index = sessions.firstIndex(where: { $0.id == sessionId }) {
+                sessions[index] = session
+                
+                // Update model handler with new history
+                modelHandler.restoreConversation(from: session.messages)
+                
+                saveSessions()
+            }
+        }
+    }
 } 

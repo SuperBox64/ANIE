@@ -134,6 +134,17 @@ struct LLMChatView: View {
                             .buttonStyle(PlainButtonStyle())
                             .keyboardShortcut(.delete, modifiers: .command)
                             .disabled(viewModel.currentSession?.messages.isEmpty ?? true)
+                            .popover(isPresented: $showingClearDialog) {
+                                if let session = viewModel.currentSession {
+                                    RemoveLastMessageDialog(
+                                        isPresented: $showingClearDialog,
+                                        session: session,
+                                        onRemove: {
+                                            viewModel.removeLastMessage(session.id)
+                                        }
+                                    )
+                                }
+                            }
                             
                             Button(action: sendMessage) {
                                 Image(systemName: "arrow.up.circle.fill")
@@ -184,17 +195,6 @@ struct LLMChatView: View {
         }
         .onAppear {
             isTextFieldFocused = true
-        }
-        .sheet(isPresented: $showingClearDialog) {
-            if let session = viewModel.currentSession {
-                ClearSessionDialog(
-                    isPresented: $showingClearDialog,
-                    session: session,
-                    onClear: {
-                        viewModel.clearSessionHistory(session.id)
-                    }
-                )
-            }
         }
     }
     
