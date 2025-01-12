@@ -1,0 +1,92 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2575.3">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 39.0px Menlo; color: #d0e8dc; background-color: #18171b}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 39.0px Menlo; color: #d0e8dc; background-color: #18171b; min-height: 45.0px}
+    p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 39.0px Menlo; color: #758992; background-color: #18171b}
+    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 39.0px Menlo; color: #89ff2b; background-color: #18171b}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 39.0px Menlo; color: #0d6be0; background-color: #18171b}
+    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 39.0px Menlo; color: #fd9709; background-color: #18171b}
+    p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 39.0px Menlo; color: #1cb826; background-color: #18171b}
+    p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 39.0px Menlo; color: #49c175; background-color: #18171b}
+    span.s1 {color: #fc3950}
+    span.s2 {color: #d0e8dc}
+    span.s3 {color: #0d6be0}
+    span.s4 {color: #fd9f39}
+    span.s5 {color: #1cb826}
+    span.s6 {color: #d0bc56}
+    span.s7 {color: #758992}
+    span.s8 {color: #c08aff}
+    span.s9 {color: #27f8ff}
+    span.s10 {color: #d045b7}
+    span.s11 {color: #fd9709}
+    span.s12 {color: #49c175}
+  </style>
+</head>
+<body>
+<p class="p1"><span class="s1"><b>import</b></span> Foundation</p>
+<p class="p2"><br></p>
+<p class="p3">// Define a class for Student</p>
+<p class="p4"><span class="s1"><b>class</b></span><span class="s2"> </span>Student<span class="s2"> {</span></p>
+<p class="p1"><span class="Apple-converted-space">    </span><span class="s1"><b>let</b></span> <span class="s3">name</span>: <span class="s4">String</span></p>
+<p class="p1"><span class="Apple-converted-space">    </span><span class="s1"><b>var</b></span> <span class="s3">grades</span>: [<span class="s4">Int</span>]</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span><span class="s1"><b>init</b></span>(<span class="s3">name</span>: <span class="s4">String</span>, <span class="s3">grades</span>: [<span class="s4">Int</span>]) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span><span class="s1"><b>self</b></span>.<span class="s5">name</span> = name</p>
+<p class="p1"><span class="Apple-converted-space">        </span><span class="s1"><b>self</b></span>.<span class="s5">grades</span> = grades</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span><span class="s1"><b>func</b></span> <span class="s3">averageGrade</span>() -&gt; <span class="s4">Double</span> {</p>
+<p class="p1"><span class="Apple-converted-space">        </span><span class="s1"><b>let</b></span> total = <span class="s5">grades</span>.reduce(<span class="s6">0</span>, +) <span class="s7">// Sum all grades</span></p>
+<p class="p1"><span class="Apple-converted-space">        </span><span class="s1"><b>return</b></span> <span class="s5">grades</span>.<span class="s8">isEmpty</span> ? <span class="s6">0.0</span> : <span class="s4">Double</span>(total) / <span class="s4">Double</span>(<span class="s5">grades</span>.<span class="s8">count</span>)</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p1">}</p>
+<p class="p2"><br></p>
+<p class="p3">// Define a class for Classroom</p>
+<p class="p4"><span class="s1"><b>class</b></span><span class="s2"> </span>Classroom<span class="s2"> {</span></p>
+<p class="p5"><span class="s2"><span class="Apple-converted-space">    </span></span><span class="s1"><b>let</b></span><span class="s2"> </span>className<span class="s2">: </span><span class="s4">String</span></p>
+<p class="p1"><span class="Apple-converted-space">    </span><span class="s1"><b>var</b></span> <span class="s3">students</span>: [<span class="s9">Student</span>]</p>
+<p class="p2"><br></p>
+<p class="p3"><span class="s2"><span class="Apple-converted-space">    </span></span>// Initializer</p>
+<p class="p1"><span class="Apple-converted-space">    </span><span class="s1"><b>init</b></span>(<span class="s3">className</span>: <span class="s4">String</span>, <span class="s3">students</span>: [<span class="s9">Student</span>] = []) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span><span class="s1"><b>self</b></span>.<span class="s5">className</span> = className</p>
+<p class="p1"><span class="Apple-converted-space">        </span><span class="s1"><b>self</b></span>.<span class="s5">students</span> = students</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p3"><span class="s2"><span class="Apple-converted-space">    </span></span>// Function to add a student</p>
+<p class="p1"><span class="Apple-converted-space">    </span><span class="s1"><b>func</b></span> <span class="s3">addStudent</span>(<span class="s3">_</span> student: <span class="s9">Student</span>) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span><span class="s5">students</span>.<span class="s10">append</span>(student)</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p3"><span class="s2"><span class="Apple-converted-space">    </span></span>// Function to display average grades of all students</p>
+<p class="p5"><span class="s2"><span class="Apple-converted-space">    </span></span><span class="s1"><b>func</b></span><span class="s2"> </span>displayAverageGrades<span class="s2">() {</span></p>
+<p class="p1"><span class="Apple-converted-space">        </span><span class="s10">print</span>(<span class="s11">"Classroom: </span>\(<span class="s5">className</span>)<span class="s11">"</span>)</p>
+<p class="p1"><span class="Apple-converted-space">        </span><span class="s5">students</span>.<span class="s10">forEach</span> { student <span class="s1"><b>in</b><b></b></span></p>
+<p class="p1"><span class="Apple-converted-space">            </span><span class="s1"><b>let</b></span> average = student.<span class="s12">averageGrade</span>()</p>
+<p class="p1"><span class="Apple-converted-space">            </span><span class="s10">print</span>(<span class="s11">"</span>\(student.<span class="s5">name</span>)<span class="s11">'s average grade: </span>\(average)<span class="s11">"</span>)</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p1">}</p>
+<p class="p2"><br></p>
+<p class="p3">// Usage</p>
+<p class="p1"><span class="s1"><b>let</b></span> <span class="s3">student1</span> = <span class="s9">Student</span>(<span class="s12">name</span>: <span class="s11">"Alice"</span>, <span class="s12">grades</span>: [<span class="s6">90</span>, <span class="s6">85</span>, <span class="s6">88</span>])</p>
+<p class="p1"><span class="s1"><b>let</b></span> <span class="s3">student2</span> = <span class="s9">Student</span>(<span class="s12">name</span>: <span class="s11">"Bob"</span>, <span class="s12">grades</span>: [<span class="s6">78</span>, <span class="s6">82</span>, <span class="s6">80</span>])</p>
+<p class="p1"><span class="s1"><b>let</b></span> <span class="s3">student3</span> = <span class="s9">Student</span>(<span class="s12">name</span>: <span class="s11">"Charlie"</span>, <span class="s12">grades</span>: [<span class="s6">95</span>, <span class="s6">92</span>, <span class="s6">89</span>])</p>
+<p class="p2"><br></p>
+<p class="p6"><span class="s1"><b>let</b></span><span class="s2"> </span><span class="s3">classroom</span><span class="s2"> = </span><span class="s9">Classroom</span><span class="s2">(</span><span class="s12">className</span><span class="s2">: </span>"Math 101"<span class="s2">)</span></p>
+<p class="p7">classroom<span class="s2">.</span><span class="s12">addStudent</span><span class="s2">(</span>student1<span class="s2">)</span></p>
+<p class="p7">classroom<span class="s2">.</span><span class="s12">addStudent</span><span class="s2">(</span>student2<span class="s2">)</span></p>
+<p class="p2"><br></p>
+<p class="p2"><br></p>
+<p class="p7">classroom<span class="s2">.</span><span class="s12">addStudent</span><span class="s2">(</span>student3<span class="s2">)</span></p>
+<p class="p2"><br></p>
+<p class="p3">// Display average grades for all students</p>
+<p class="p8"><span class="s5">classroom</span><span class="s2">.</span>displayAverageGrades<span class="s2">()</span></p>
+</body>
+</html>

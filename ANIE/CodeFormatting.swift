@@ -5,153 +5,181 @@ extension View {
     func formatSwiftCode(_ code: String, colorScheme: ColorScheme) -> AttributedString {
         var result = AttributedString(code)
         
-        // Define colors based on color scheme
-        let isDarkMode = colorScheme == .dark
-        
-        // Default text color (white in dark mode, black in light mode)
-        let textColor = isDarkMode ? Color.white : Color.black
-        
-        // Default color is now green (for method calls and properties)
-        let defaultColor = isDarkMode ? Color(nsColor: NSColor(red: 108/255, green: 225/255, blue: 133/255, alpha: 1.0)) :
-                                      Color(nsColor: NSColor(red: 50/255, green: 144/255, blue: 66/255, alpha: 1.0))
-        
-        // Define Xcode's syntax highlighting colors
-        let keywordColor = isDarkMode ? Color(nsColor: NSColor(red: 255/255, green: 122/255, blue: 178/255, alpha: 1.0)) :
-                                      Color(nsColor: NSColor(red: 175/255, green: 35/255, blue: 185/255, alpha: 1.0))     // Pink for keywords
-        
-        let typeColor = isDarkMode ? Color(nsColor: NSColor(red: 150/255, green: 134/255, blue: 255/255, alpha: 1.0)) :
-                                   Color(nsColor: NSColor(red: 76/255, green: 99/255, blue: 175/255, alpha: 1.0))         // Light purple for String
-        
-        let printColor = isDarkMode ? Color(nsColor: NSColor(red: 202/255, green: 118/255, blue: 255/255, alpha: 1.0)) :
-                                    Color(nsColor: NSColor(red: 130/255, green: 45/255, blue: 201/255, alpha: 1.0))       // Darker purple for print
-        
-        let variableColor = isDarkMode ? Color(nsColor: NSColor(red: 86/255, green: 194/255, blue: 255/255, alpha: 1.0)) :
-                                       Color(nsColor: NSColor(red: 11/255, green: 136/255, blue: 186/255, alpha: 1.0))    // Light blue for identifiers
-        
-        let stringColor = isDarkMode ? Color(nsColor: NSColor(red: 252/255, green: 106/255, blue: 93/255, alpha: 1.0)) :
-                                     Color(nsColor: NSColor(red: 196/255, green: 26/255, blue: 22/255, alpha: 1.0))       // Red for strings
-
-        let regularCommentColor = isDarkMode ? Color(nsColor: NSColor(red: 128/255, green: 141/255, blue: 154/255, alpha: 1.0)) :
-                                             Color(nsColor: NSColor(red: 93/255, green: 108/255, blue: 121/255, alpha: 1.0))  // Gray for comments
-        
-        // Set initial color to green
-        result.foregroundColor = defaultColor
-        
         let text = code as NSString
         let range = NSRange(location: 0, length: text.length)
         
-        // 0. Operators and punctuation (default text color)
-        let operatorPattern = "[.()\\\\:;,{}]|\\s*[=+\\-*/<>!&|^~]+\\s*"
-        if let regex = try? NSRegularExpression(pattern: operatorPattern, options: []) {
+        // Colors from HTML with exact hex values
+        let defaultColor = Color(nsColor: NSColor(red: 0xd0/255, green: 0xe8/255, blue: 0xdc/255, alpha: 1.0))   // #d0e8dc - default text
+        let keywordPink = Color(nsColor: NSColor(red: 0xfc/255, green: 0x39/255, blue: 0x50/255, alpha: 1.0))    // #fc3950 - keywords (bold)
+        let commentGray = Color(nsColor: NSColor(red: 0x75/255, green: 0x89/255, blue: 0x92/255, alpha: 1.0))    // #758992 - comments
+        let classGreen = Color(nsColor: NSColor(red: 0x89/255, green: 0xff/255, blue: 0x2b/255, alpha: 1.0))     // #89ff2b - class names
+        let varBlue = Color(nsColor: NSColor(red: 0x0d/255, green: 0x6b/255, blue: 0xe0/255, alpha: 1.0))        // #0d6be0 - variables/functions
+        let typeOrange = Color(nsColor: NSColor(red: 0xfd/255, green: 0x97/255, blue: 0x09/255, alpha: 1.0))     // #fd9709 - Int/Double/Float
+        let propGreen = Color(nsColor: NSColor(red: 0x1c/255, green: 0xb8/255, blue: 0x26/255, alpha: 1.0))      // #1cb826 - property access
+        let methodGreen = Color(nsColor: NSColor(red: 0x49/255, green: 0xc1/255, blue: 0x75/255, alpha: 1.0))    // #49c175 - method calls
+        let typeCyan = Color(nsColor: NSColor(red: 0x27/255, green: 0xf8/255, blue: 0xff/255, alpha: 1.0))       // #27f8ff - Student type
+        let funcMagenta = Color(nsColor: NSColor(red: 0xd0/255, green: 0x45/255, blue: 0xb7/255, alpha: 1.0))    // #d045b7 - print/append/forEach
+        let methodPurple = Color(nsColor: NSColor(red: 0xc0/255, green: 0x8a/255, blue: 0xff/255, alpha: 1.0))   // #c08aff - isEmpty/count
+        let numberYellow = Color(nsColor: NSColor(red: 0xd0/255, green: 0xbc/255, blue: 0x56/255, alpha: 1.0))   // #d0bc56 - numbers
+        let stringOrange = Color(nsColor: NSColor(red: 0xfd/255, green: 0x9f/255, blue: 0x39/255, alpha: 1.0))   // #fd9f39 - String type
+        let mintGreen = Color(nsColor: NSColor(red: 0x98/255, green: 0xff/255, blue: 0xb3/255, alpha: 1.0))      // #98ffb3 - method calls
+        
+        func applyColor(_ regex: NSRegularExpression, _ color: Color, bold: Bool = false) {
             let matches = regex.matches(in: code, range: range)
             for match in matches.reversed() {
                 if let stringRange = Range(match.range, in: code),
                    let attributedRange = Range(stringRange, in: result) {
-                    var operatorAttr = AttributedString(String(code[stringRange]))
-                    operatorAttr.foregroundColor = textColor
-                    result.replaceSubrange(attributedRange, with: operatorAttr)
+                    var attr = AttributedString(String(code[stringRange]))
+                    attr.foregroundColor = color
+                    if bold {
+                        attr.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
+                    }
+                    result.replaceSubrange(attributedRange, with: attr)
                 }
             }
+        }
+    
+        
+        // Color Swift keywords pink
+        if let regex = try? NSRegularExpression(pattern: "\\b(import|class|let|var|init|func|return|self|struct|in)\\b", options: []) {
+            applyColor(regex, keywordPink, bold: true)
         }
         
-        // 1. Keywords (pink)
-        let keywords = ["class", "var", "init", "self", "let", "func"]
-        for keyword in keywords {
-            let pattern = "\\b\(keyword)\\b"
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                let matches = regex.matches(in: code, range: range)
-                for match in matches.reversed() {
-                    if let stringRange = Range(match.range, in: code),
-                       let attributedRange = Range(stringRange, in: result) {
-                        var keywordAttr = AttributedString(String(code[stringRange]))
-                        keywordAttr.foregroundColor = keywordColor
-                        result.replaceSubrange(attributedRange, with: keywordAttr)
-                    }
-                }
-            }
+        // Color class/struct names lime green
+        if let regex = try? NSRegularExpression(pattern: "(?<=\\b(?:class|struct)\\s)[A-Z][a-zA-Z0-9_]*(?=\\s*\\{)", options: []) {
+            applyColor(regex, classGreen)
         }
-
-        // 2. Light blue identifiers (all names)
-        let bluePatterns = [
-            "(?<=\\b(class|var|let|func)\\s+)[a-zA-Z_][a-zA-Z0-9_]*\\b",  // After keywords
-            "(?<=\\w+:)\\s*[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*[,)])",          // Parameter values
-            "(?<=\\(|,\\s*)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)",             // Parameter names
-            "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*=)",                        // Variables being assigned
-            "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)",                        // Variables in declarations
-            "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\{)"                       // Class/struct names
-        ]
         
-        for pattern in bluePatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                let matches = regex.matches(in: code, range: range)
-                for match in matches.reversed() {
-                    if let stringRange = Range(match.range, in: code),
-                       let attributedRange = Range(stringRange, in: result) {
-                        var identifierAttr = AttributedString(String(code[stringRange]))
-                        identifierAttr.foregroundColor = variableColor
-                        result.replaceSubrange(attributedRange, with: identifierAttr)
-                    }
-                }
-            }
+        // Color custom types cyan
+        if let regex = try? NSRegularExpression(pattern: "\\b[A-Z][a-zA-Z0-9_]*\\b(?!\\s*\\{)", options: []) {
+            applyColor(regex, typeCyan)
+        }
+        
+        // Color array type names bright blue
+        if let regex = try? NSRegularExpression(pattern: "(?<=\\[)[A-Z][a-zA-Z0-9_]*(?=\\])", options: []) {
+            applyColor(regex, typeCyan)
+        }
+        
+        // Color Swift types orange
+        if let regex = try? NSRegularExpression(pattern: "\\b(String|Int|Double)\\b", options: []) {
+            applyColor(regex, typeOrange)
+        }
+        
+       
+        // Color variable names after let/var blue
+        if let regex = try? NSRegularExpression(pattern: "(?<=\\b(?:let|var)\\s)[^=:]+(?=\\s*[=:])", options: []) {
+            applyColor(regex, varBlue)
         }
 
-        // 3. Type names (light purple)
-        let types = ["String"]
-        for type in types {
-            let pattern = "\\b\(type)\\b"
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                let matches = regex.matches(in: code, range: range)
-                for match in matches.reversed() {
-                    if let stringRange = Range(match.range, in: code),
-                       let attributedRange = Range(stringRange, in: result) {
-                        var typeAttr = AttributedString(String(code[stringRange]))
-                        typeAttr.foregroundColor = typeColor
-                        result.replaceSubrange(attributedRange, with: typeAttr)
-                    }
-                }
-            }
+        // Color property access after self. in green
+        if let regex = try? NSRegularExpression(pattern: "(?<=self\\.)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s|$)", options: []) {
+            applyColor(regex, propGreen)
         }
 
-        // 4. Print function (dark purple)
-        let printPattern = "\\bprint\\b"
-        if let regex = try? NSRegularExpression(pattern: printPattern, options: []) {
-            let matches = regex.matches(in: code, range: range)
-            for match in matches.reversed() {
-                if let stringRange = Range(match.range, in: code),
-                   let attributedRange = Range(stringRange, in: result) {
-                    var printAttr = AttributedString(String(code[stringRange]))
-                    printAttr.foregroundColor = printColor
-                    result.replaceSubrange(attributedRange, with: printAttr)
-                }
-            }
+        // Color numeric literals yellow
+        if let regex = try? NSRegularExpression(pattern: "\\b\\d+(?:\\.\\d+)?\\b", options: []) {
+            applyColor(regex, numberYellow)
         }
 
-        // 5. String literals (orangered)
-        let stringPattern = #""[^"\\]*(?:\\.[^"\\]*)*""#
-        if let regex = try? NSRegularExpression(pattern: stringPattern, options: []) {
-            let matches = regex.matches(in: code, range: range)
-            for match in matches.reversed() {
-                if let stringRange = Range(match.range, in: code),
-                   let attributedRange = Range(stringRange, in: result) {
-                    var strAttr = AttributedString(String(code[stringRange]))
-                    strAttr.foregroundColor = stringColor
-                    result.replaceSubrange(attributedRange, with: strAttr)
-                }
-            }
+        // Color identifiers before .reduce in green
+        if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\.reduce\\b)", options: []) {
+            applyColor(regex, propGreen)
         }
 
-        // 6. Comments (gray)
-        let commentPattern = "//.*$"
-        if let regex = try? NSRegularExpression(pattern: commentPattern, options: [.anchorsMatchLines]) {
-            let matches = regex.matches(in: code, range: range)
-            for match in matches.reversed() {
-                if let stringRange = Range(match.range, in: code),
-                   let attributedRange = Range(stringRange, in: result) {
-                    var commentAttr = AttributedString(String(code[stringRange]))
-                    commentAttr.foregroundColor = regularCommentColor
-                    result.replaceSubrange(attributedRange, with: commentAttr)
-                }
-            }
+        // Color identifiers before .isEmpty or .count in green
+        if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\.(isEmpty|count)\\b)", options: []) {
+            applyColor(regex, propGreen)
+        }
+
+        // Color identifiers before method calls in green
+        if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\.(?:append|reduce|isEmpty|count|forEach|[a-zA-Z_][a-zA-Z0-9_]*\\())", options: []) {
+            applyColor(regex, propGreen)
+        }
+
+        // Color method names purple
+        if let regex = try? NSRegularExpression(pattern: "(?<=\\.)(append)\\b", options: []) {
+            applyColor(regex, methodPurple)
+        }
+
+        // Color standard Swift methods light purple
+        if let regex = try? NSRegularExpression(pattern: "\\.(?:isEmpty|count)\\b", options: []) {
+            applyColor(regex, methodPurple)
+        }
+
+        // Color function names blue
+        if let regex = try? NSRegularExpression(pattern: "(?<=func\\s)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()", options: []) {
+            applyColor(regex, varBlue)
+        }
+
+        // Color parameter names blue in parameter lists
+        if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)", options: []) {
+            applyColor(regex, varBlue)
+        }
+
+        // Color underscores blue
+        if let regex = try? NSRegularExpression(pattern: "_(?=[a-zA-Z])", options: []) {
+            applyColor(regex, varBlue)
+        }
+
+        // Color print keyword purple
+        if let regex = try? NSRegularExpression(pattern: "\\bprint\\b", options: []) {
+            applyColor(regex, funcMagenta)
+        }
+        
+        // Color string contents orange (excluding interpolation)
+        if let regex = try? NSRegularExpression(pattern: "\"[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*\"", options: []) {
+            applyColor(regex, stringOrange)
+        }
+        
+        // Color string interpolation delimiters default color
+        if let regex = try? NSRegularExpression(pattern: "\\\\\\(|\\)", options: []) {
+            applyColor(regex, defaultColor)
+        }
+        
+        // Color interpolated variables green
+        if let regex = try? NSRegularExpression(pattern: "(?<=\\\\\\()[a-zA-Z_][a-zA-Z0-9_\\.]*(?=\\))", options: []) {
+            applyColor(regex, propGreen)
+        }
+
+    
+        // Color forEach purple
+        if let regex = try? NSRegularExpression(pattern: "\\.forEach\\b", options: []) {
+            applyColor(regex, methodPurple)
+        }
+
+        // Color method calls mint green
+        if let regex = try? NSRegularExpression(pattern: "\\.(?!(?:append|reduce|isEmpty|count|forEach)\\b)[a-zA-Z_][a-zA-Z0-9_]*\\(", options: []) {
+            applyColor(regex, mintGreen)
+        }
+
+        // Color method arguments in green
+        if let regex = try? NSRegularExpression(pattern: "(?<=\\()[a-zA-Z_][a-zA-Z0-9_]*(?=\\))", options: []) {
+            applyColor(regex, propGreen)
+        }
+
+        // Color variable properties green when after let/var at line start
+        if let regex = try? NSRegularExpression(pattern: "(?<=^\\s*(?:let|var)\\s+[^=:]+:\\s*)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*[=,])", options: [.anchorsMatchLines]) {
+            applyColor(regex, propGreen)
+        }
+
+        // Color parameter names blue in variable declarations
+        if let regex = try? NSRegularExpression(pattern: "(?<=^\\s*(?:let|var)\\s+[^=]+?=\\s*[A-Z][a-zA-Z0-9_]*\\()[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)", options: [.anchorsMatchLines]) {
+            applyColor(regex, mintGreen)
+        }
+
+        // Color text after import white 
+        if let regex = try? NSRegularExpression(pattern: "(?<=import\\s)[^\\n]+", options: []) {
+            applyColor(regex, defaultColor)
+        }
+        
+        // Color comments gray
+        if let regex = try? NSRegularExpression(pattern: "//.*$", options: [.anchorsMatchLines]) {
+            applyColor(regex, commentGray)
+        }
+
+        // Color property names mint green in let declarations
+        if let regex = try? NSRegularExpression(pattern: "(?<=^\\s*let\\s+[^=]+?=\\s*[A-Z][a-zA-Z0-9_]*\\()[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)", options: [.anchorsMatchLines]) {
+            applyColor(regex, mintGreen)
         }
 
         return result
