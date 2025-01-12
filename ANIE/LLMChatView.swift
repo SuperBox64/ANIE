@@ -21,6 +21,9 @@ struct LLMChatView: View {
     @AppStorage("useLocalAI") private var useLocalAI = false
     @FocusState private var isTextFieldFocused: Bool
     @State private var showingClearDialog = false
+    @State private var currentSearchIndex: Int = 0
+    @State private var selectedMessageId: UUID?
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         HSplitView {
@@ -29,6 +32,81 @@ struct LLMChatView: View {
             VStack(spacing: 0) {
                 // Top toolbar
                 HStack {
+                    GeometryReader { geometry in
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
+                                
+                            Text(viewModel.searchTerm.isEmpty ? "0 of 0" : "\(currentSearchIndex + 1) of \(viewModel.filteredMessages?.count ?? 0)")
+                                .foregroundColor(.secondary)
+                                .font(.system(size: 11))
+                                .frame(width: 50)
+                            
+                            Button(action: {
+                                if let messages = viewModel.filteredMessages, !messages.isEmpty {
+                                    if currentSearchIndex > 0 {
+                                        currentSearchIndex -= 1
+                                        scrollToMessage(messages[currentSearchIndex].id)
+                                    }
+                                }
+                            }) {
+                                Image(systemName: "chevron.up")
+                                    .foregroundColor(.white)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.red)
+                            .help("Previous match (⇧⌘G)")
+                            .keyboardShortcut("g", modifiers: [.command, .shift])
+                            .disabled(viewModel.searchTerm.isEmpty || viewModel.filteredMessages?.isEmpty ?? true || currentSearchIndex == 0)
+                            .opacity(viewModel.searchTerm.isEmpty ? 0.5 : 1.0)
+                            
+                            Button(action: {
+                                if let messages = viewModel.filteredMessages, !messages.isEmpty {
+                                    if currentSearchIndex < messages.count - 1 {
+                                        currentSearchIndex += 1
+                                        scrollToMessage(messages[currentSearchIndex].id)
+                                    }
+                                }
+                            }) {
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(.white)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.green)
+                            .help("Next match (⌘G)")
+                            .keyboardShortcut("g", modifiers: .command)
+                            .disabled(viewModel.searchTerm.isEmpty || viewModel.filteredMessages?.isEmpty ?? true || (viewModel.filteredMessages.map { currentSearchIndex >= $0.count - 1 } ?? true))
+                            .opacity(viewModel.searchTerm.isEmpty ? 0.5 : 1.0)
+                            
+                            TextField("Search messages...", text: $viewModel.searchTerm)
+                                .textFieldStyle(PlainTextFieldStyle())
+                                .frame(maxWidth: .infinity)
+                                .onChange(of: viewModel.searchTerm) { newValue in
+                                    // Reset search index when search term changes
+                                    currentSearchIndex = 0
+                                    // Clear highlight when search is cleared
+                                    if newValue.isEmpty {
+                                        selectedMessageId = nil
+                                    }
+                                    // If we have matches, scroll to first one
+                                    if let messages = viewModel.filteredMessages, !messages.isEmpty {
+                                        scrollToMessage(messages[0].id)
+                                    }
+                                }
+                        }
+                        .padding(6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(colorScheme == .dark ? Color.black : Color.white)
+                                .shadow(color: Color(.separatorColor).opacity(0.5), radius: 2)
+                        )
+                        .padding(.leading, 68)
+                        .padding(.trailing, 18)
+                        .padding(.top, 10)
+                        .padding(.bottom, 10)
+                    }
+                    .frame(height: 40)
+                    
                     Spacer()
                     Button {
                         showingConfiguration = true
@@ -46,14 +124,15 @@ struct LLMChatView: View {
                     .buttonStyle(.plain)
                     .padding([.top, .trailing], 8)
                 }
+                .padding(.bottom, 10)
                 
                 // Messages ScrollView
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 9) {
-                            if let session = viewModel.currentSession {
-                                ForEach(session.messages) { message in
-                                    MessageView(message: message)
+                            if let messages = viewModel.filteredMessages {
+                                ForEach(messages) { message in
+                                    MessageView(message: message, isSelected: selectedMessageId == message.id)
                                         .id(message.id)
                                 }
                             }
@@ -79,6 +158,9 @@ struct LLMChatView: View {
                         withAnimation {
                             proxy.scrollTo("bottom", anchor: .bottom)
                         }
+                    }
+                    .onAppear {
+                        scrollProxy = proxy
                     }
                 }
                 
@@ -122,13 +204,25 @@ struct LLMChatView: View {
                             .padding(.horizontal, 18)
                         
                         VStack(spacing: 22) {
+                            Button(action: sendMessage) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(userInput.isEmpty || viewModel.isProcessing ? 
+                                        Color.black.opacity(0.5) : .accentColor)
+                                    .background(Circle().fill(Color.white))
+                                    .contentShape(Circle())
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .keyboardShortcut(.return, modifiers: .command)
+                            .disabled(userInput.isEmpty || viewModel.isProcessing)
+
                             Button(action: {
                                 showingClearDialog = true
                             }) {
                                 Image(systemName: "arrow.uturn.backward.circle.fill")
                                     .font(.system(size: 32))
-                                    .foregroundColor(.accentColor.opacity(1.0))
-                                    .background(Circle().fill(Color.white))
+                                    .foregroundColor(.white)
+                                    .background(Circle().fill(Color.red))
                                     .contentShape(Circle())
                             }
                             .buttonStyle(PlainButtonStyle())
@@ -145,18 +239,6 @@ struct LLMChatView: View {
                                     )
                                 }
                             }
-                            
-                            Button(action: sendMessage) {
-                                Image(systemName: "arrow.up.circle.fill")
-                                    .font(.system(size: 32))
-                                    .foregroundColor(userInput.isEmpty || viewModel.isProcessing ? 
-                                        Color.black.opacity(0.5) : .accentColor)
-                                    .background(Circle().fill(Color.white))
-                                    .contentShape(Circle())
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .keyboardShortcut(.return, modifiers: .command)
-                            .disabled(userInput.isEmpty || viewModel.isProcessing)
                         }
                         .padding(.trailing, 30)
                         .offset(y: -1)
@@ -208,6 +290,15 @@ struct LLMChatView: View {
         print(userInput)
         Task {
             await viewModel.processUserInput(messageToSend)
+        }
+    }
+    
+    private func scrollToMessage(_ id: UUID) {
+        if let proxy = scrollProxy {
+            withAnimation {
+                proxy.scrollTo(id, anchor: .center)
+                selectedMessageId = id
+            }
         }
     }
 } 

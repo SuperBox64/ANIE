@@ -18,7 +18,7 @@ extension View {
         let propGreen = Color(nsColor: NSColor(red: 0x30/255, green: 0xd0/255, blue: 0x40/255, alpha: 1.0))      // #30d040 - property access
         let methodGreen = Color(nsColor: NSColor(red: 0x49/255, green: 0xc1/255, blue: 0x75/255, alpha: 1.0))    // #49c175 - method calls
         let typeCyan = Color(nsColor: NSColor(red: 0x27/255, green: 0xf8/255, blue: 0xff/255, alpha: 1.0))       // #27f8ff - Student type
-        let funcMagenta = Color(nsColor: NSColor(red: 0xd0/255, green: 0x45/255, blue: 0xb7/255, alpha: 1.0))    // #d045b7 - print/append/forEach
+        let funcMagenta = Color(nsColor: NSColor(red: 0xd8/255, green: 0x4d/255, blue: 0xbf/255, alpha: 1.0))    // #d84dbf - print/append/forEach
         let methodPurple = Color(nsColor: NSColor(red: 0xc0/255, green: 0x8a/255, blue: 0xff/255, alpha: 1.0))   // #c08aff - isEmpty/count
         let numberYellow = Color(nsColor: NSColor(red: 0xd0/255, green: 0xbc/255, blue: 0x56/255, alpha: 1.0))   // #d0bc56 - numbers
         let stringOrange = Color(nsColor: NSColor(red: 0xfd/255, green: 0x9f/255, blue: 0x39/255, alpha: 1.0))   // #fd9f39 - String type
@@ -37,11 +37,6 @@ extension View {
                     result.replaceSubrange(attributedRange, with: attr)
                 }
             }
-        }
-        
-        // Color Swift keywords pink
-        if let regex = try? NSRegularExpression(pattern: "\\b(import|class|let|var|init|func|return|self|struct|in|for)\\b", options: []) {
-            applyColor(regex, keywordPink, bold: true)
         }
         
         // Color variable names after let/var blue
@@ -94,16 +89,9 @@ extension View {
             applyColor(regex, methodPurple)
         }
 
-       
-
         // Color print keyword purple
         if let regex = try? NSRegularExpression(pattern: "\\bprint\\b|\\bmax\\b", options: []) {
             applyColor(regex, funcMagenta)
-        }
-        
-        // Color method calls mint green
-        if let regex = try? NSRegularExpression(pattern: "\\.(?!(?:append|isEmpty|count|forEach)\\b)[a-zA-Z_][a-zA-Z0-9_]*\\(", options: []) {
-            applyColor(regex, methodPurple)
         }
 
         // Color variable properties green when after let/var at line start
@@ -146,14 +134,24 @@ extension View {
             applyColor(regex, stringOrange)
         }
         
-         // Combined pattern for methodPurple
+        // Combined pattern for methodPurple
         if let regex = try? NSRegularExpression(pattern: "\\.(?:reduce)\\b", options: []) {
             applyColor(regex, defaultColor)
+        }
+
+        // Color Swift keywords pink
+        if let regex = try? NSRegularExpression(pattern: "\\b(import|mutating|class|let|var|init|func|return|self|struct|in|for)\\b", options: []) {
+            applyColor(regex, keywordPink, bold: true)
         }
         
         // Color string interpolation delimiters default color
         if let regex = try? NSRegularExpression(pattern: "\\\\\\(|\\)", options: []) {
             applyColor(regex, defaultColor)
+        }
+        
+        // Color variables inside string interpolation green
+        if let regex = try? NSRegularExpression(pattern: "(?<=\\\\\\()[a-zA-Z_][a-zA-Z0-9_]*(?=\\))", options: []) {
+            applyColor(regex, propGreen)
         }
         
         // Color comments gray
@@ -165,163 +163,111 @@ extension View {
         if let regex = try? NSRegularExpression(pattern: "//\\s*(?:MARK:|TODO:).*$", options: [.anchorsMatchLines]) {
             applyColor(regex, commentGray, bold: true)
         }
-     
-       
 
+        // Color parameter names after underscore in default color
+        if let regex = try? NSRegularExpression(pattern: "(?<=_\\s)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)", options: []) {
+            applyColor(regex, defaultColor)
+        }
+        
         return result
     }
-}
-
-@MainActor
-public func formatMarkdown(_ text: String) -> AttributedString {
-    // Check if this is an error message
-    if text.hasPrefix("Error:") || text.contains("API Error:") {
-        var errorAttr = AttributedString(text)
-        errorAttr.foregroundColor = .white
-        return errorAttr
+    
+    func formatMarkdown(_ text: String) -> AttributedString {
+        // Check if this is an error message
+        if text.hasPrefix("Error:") || text.contains("API Error:") {
+            var errorAttr = AttributedString(text)
+            errorAttr.foregroundColor = .red
+            return errorAttr
+        }
+        
+        if var processed = try? AttributedString(markdown: text, options: .init(
+            allowsExtendedAttributes: true,
+            interpretedSyntax: .inlineOnly,
+            failurePolicy: .returnPartiallyParsedIfPossible
+        )) {
+            processed.foregroundColor = Color(nsColor: NSColor.labelColor)
+            return processed
+        }
+        
+        var defaultAttr = AttributedString(text)
+        defaultAttr.foregroundColor = Color(nsColor: NSColor.labelColor)
+        return defaultAttr
     }
     
-    if var processed = try? AttributedString(markdown: text, options: .init(
-        allowsExtendedAttributes: true,
-        interpretedSyntax: .inlineOnly,
-        failurePolicy: .returnPartiallyParsedIfPossible
-    )) {
-        // Process markdown elements
-        let headerMarkers = ["#### ", "### ", "## ", "# "]
-        for marker in headerMarkers {
-            while let range = processed.range(of: marker) {
-                processed.replaceSubrange(range, with: AttributedString(""))
-            }
-        }
+    func extractCodeBlocks(from text: String) -> [(content: String, isCode: Bool)] {
+        var blocks: [(String, Bool)] = []
+        var currentText = ""
+        var isInCodeBlock = false
         
-        // Replace list markers with bullets
-        let bulletFont = NSFont.systemFont(ofSize: NSFont.systemFontSize + 2)
-        while let range = processed.range(of: "- ") {
-            var bulletAttr = AttributedString("• ")
-            bulletAttr.font = bulletFont
-            processed.replaceSubrange(range, with: bulletAttr)
-        }
-        
-        // Process lines with colons (non-numbered)
         let lines = text.components(separatedBy: .newlines)
-        let headerFont = NSFont.systemFont(ofSize: NSFont.systemFontSize + 2)
         
-        // First, handle non-numbered items with colons
-        let colonPattern = #"^(?!\s*\d+\.)(.+?):\s*$"#  // Matches lines ending with colon, but not numbered lists
-        let colonRegex = try? NSRegularExpression(pattern: colonPattern, options: [.anchorsMatchLines])
+        // Code indicators
+        let codeKeywords = Set(["func", "class", "struct", "import", "var", "let", "enum", "protocol", "extension"])
+        let syntaxPatterns = [
+            "^\\s*[a-zA-Z_][a-zA-Z0-9_]*\\s*[:{]\\s*$",  // Class/struct/enum declarations
+            "^\\s*\\}\\s*$",  // Closing braces
+            "^\\s*[a-zA-Z_][a-zA-Z0-9_]*\\s*\\([^)]*\\)\\s*(?:->|{)\\s*$",  // Function declarations
+            "^\\s*@[a-zA-Z][a-zA-Z0-9_]*\\s*$",  // Decorators/attributes
+            "^\\s*import\\s+[a-zA-Z][a-zA-Z0-9_]*\\s*$"  // Import statements
+        ]
         
-        for line in lines {
-            if let match = colonRegex?.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count)),
-               let contentRange = Range(match.range(at: 1), in: line) {
-                let content = String(line[contentRange])
-                if let range = processed.range(of: content + ":") {
-                    var headerAttr = AttributedString(content)
-                    headerAttr.inlinePresentationIntent = .stronglyEmphasized
-                    headerAttr.font = headerFont
-                    processed.replaceSubrange(range, with: headerAttr)
+        func looksLikeCode(_ text: String) -> Bool {
+            let lines = text.components(separatedBy: .newlines)
+            var codeScore = 0
+            
+            for line in lines {
+                // Check for code keywords
+                let words = line.components(separatedBy: .whitespaces)
+                if words.first.map({ codeKeywords.contains($0) }) ?? false {
+                    codeScore += 2
+                }
+                
+                // Check for syntax patterns
+                if syntaxPatterns.contains(where: { pattern in
+                    line.range(of: pattern, options: .regularExpression) != nil
+                }) {
+                    codeScore += 2
+                }
+                
+                // Check for indentation
+                if line.hasPrefix("    ") || line.hasPrefix("\t") {
+                    codeScore += 1
+                }
+                
+                // Check for special characters common in code
+                if line.contains("{") || line.contains("}") || line.contains(";") {
+                    codeScore += 1
                 }
             }
+            
+            // Consider it code if score exceeds threshold relative to line count
+            return codeScore >= max(3, lines.count)
         }
         
-        // Then handle numbered lists
-        let numberedPattern = #"^\s*\d+\.\s+(.+?)(?::|(?:\s*$))"#  // Match content up to colon or end of line
-        let numberedRegex = try? NSRegularExpression(pattern: numberedPattern, options: [.anchorsMatchLines])
-        
         for line in lines {
-            if let match = numberedRegex?.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count)),
-               let contentRange = Range(match.range(at: 1), in: line) {
-                let content = String(line[contentRange])
-                if let range = processed.range(of: content + ":") {
-                    // If we found it with the colon, replace it
-                    var boldAttr = AttributedString(content)
-                    boldAttr.inlinePresentationIntent = .stronglyEmphasized
-                    processed.replaceSubrange(range, with: boldAttr)
-                } else if let range = processed.range(of: content) {
-                    // If we found it without the colon, just make it bold
-                    processed[range].inlinePresentationIntent = .stronglyEmphasized
+            if line.hasPrefix("```") {
+                if !currentText.isEmpty {
+                    // If not explicitly marked as code, use ML detection
+                    let isCode = isInCodeBlock || looksLikeCode(currentText)
+                    blocks.append((currentText, isCode))
+                    currentText = ""
                 }
-            }
-        }
-        
-        return processed
-    }
-    
-    return AttributedString(text)
-}
-
-public func extractCodeBlocks(from text: String) -> [(content: String, isCode: Bool)] {
-    var blocks: [(String, Bool)] = []
-    var currentText = ""
-    var isInCodeBlock = false
-    
-    let lines = text.components(separatedBy: .newlines)
-    
-    // Code indicators
-    let codeKeywords = Set(["func", "class", "struct", "import", "var", "let", "enum", "protocol", "extension"])
-    let syntaxPatterns = [
-        "^\\s*[a-zA-Z_][a-zA-Z0-9_]*\\s*[:{]\\s*$",  // Class/struct/enum declarations
-        "^\\s*\\}\\s*$",  // Closing braces
-        "^\\s*[a-zA-Z_][a-zA-Z0-9_]*\\s*\\([^)]*\\)\\s*(?:->|{)\\s*$",  // Function declarations
-        "^\\s*@[a-zA-Z][a-zA-Z0-9_]*\\s*$",  // Decorators/attributes
-        "^\\s*import\\s+[a-zA-Z][a-zA-Z0-9_]*\\s*$"  // Import statements
-    ]
-    
-    func looksLikeCode(_ text: String) -> Bool {
-        let lines = text.components(separatedBy: .newlines)
-        var codeScore = 0
-        
-        for line in lines {
-            // Check for code keywords
-            let words = line.components(separatedBy: .whitespaces)
-            if words.first.map({ codeKeywords.contains($0) }) ?? false {
-                codeScore += 2
+                isInCodeBlock.toggle()
+                continue
             }
             
-            // Check for syntax patterns
-            if syntaxPatterns.contains(where: { pattern in
-                line.range(of: pattern, options: .regularExpression) != nil
-            }) {
-                codeScore += 2
-            }
-            
-            // Check for indentation
-            if line.hasPrefix("    ") || line.hasPrefix("\t") {
-                codeScore += 1
-            }
-            
-            // Check for special characters common in code
-            if line.contains("{") || line.contains("}") || line.contains(";") {
-                codeScore += 1
-            }
-        }
-        
-        // Consider it code if score exceeds threshold relative to line count
-        return codeScore >= max(3, lines.count)
-    }
-    
-    for line in lines {
-        if line.hasPrefix("```") {
             if !currentText.isEmpty {
-                // If not explicitly marked as code, use ML detection
-                let isCode = isInCodeBlock || looksLikeCode(currentText)
-                blocks.append((currentText, isCode))
-                currentText = ""
+                currentText += "\n"
             }
-            isInCodeBlock.toggle()
-            continue
+            currentText += line
         }
         
         if !currentText.isEmpty {
-            currentText += "\n"
+            // For the last block, use ML detection if not explicitly marked
+            let isCode = isInCodeBlock || looksLikeCode(currentText)
+            blocks.append((currentText, isCode))
         }
-        currentText += line
+        
+        return blocks
     }
-    
-    if !currentText.isEmpty {
-        // For the last block, use ML detection if not explicitly marked
-        let isCode = isInCodeBlock || looksLikeCode(currentText)
-        blocks.append((currentText, isCode))
-    }
-    
-    return blocks
 } 

@@ -1,12 +1,13 @@
 import SwiftUI
 import AppKit
+import ANIE
 
 
 class MessageObserver: ObservableObject {
     static let shared = MessageObserver()
     @Published private(set) var maxWidthX: CGFloat = 600
     
-    private init() {
+    init() {
         // Set initial value
         updateMaxWidth()
         
@@ -35,57 +36,27 @@ class MessageObserver: ObservableObject {
 
 struct MessageView: View {
     let message: Message
+    let isSelected: Bool
     @ObservedObject private var messageObserver = MessageObserver.shared
-
+    
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            if !message.isUser {
-                VStack(spacing: 2) {
-                    Text("ANIE")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 3)
-                        .padding(.bottom, 1)
-                    
-                    if message.usedLocalAI {
-                        Text("🧠")
-                            .font(.system(size: 14))
-                            .padding(.bottom, 2)
-                    } else if message.usedBERT {
-                        Text("🤖")
-                            .font(.system(size: 14))
-                            .padding(.bottom, 2)
-                    }
-                }
-                .frame(width: 40, alignment: .trailing)
-            }
-            
+        VStack(alignment: .leading) {
             if message.isError {
-                // Error message - always red background with white text
-                VStack(alignment: .trailing, spacing: 0) {
-                    Text(message.content)
-                        .textSelection(.enabled)
-                        .foregroundColor(.white)
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                }
-                .background(Color.red)
-                .cornerRadius(11)
-                .padding(.leading, 5)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                ErrorMessageView(message: message)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             } else if message.isUser {
                 HStack (alignment: .top) {
-                        Spacer()
-                        UserMessageView(message: message)
+                    Spacer()
+                    UserMessageView(message: message, isSelected: isSelected)
                         .frame(width: messageObserver.maxWidthX, alignment: .trailing)
                         .padding(.trailing, 5)
                 }
             } else {
                 HStack (alignment: .top) {
-                    AIMessageView(message: message)
-                        .frame(width:  messageObserver.maxWidthX, alignment: .leading)
+                    AIMessageView(message: message, isSelected: isSelected)
+                        .frame(width: messageObserver.maxWidthX, alignment: .leading)
                         .padding(.leading, 5)
-                        Spacer()
+                    Spacer()
                 }
             }
             
@@ -99,6 +70,30 @@ struct MessageView: View {
         .padding(.horizontal, 7)
         .transaction { transaction in
             transaction.animation = nil
+        }
+    }
+}
+
+
+struct ErrorMessageView: View {
+    let message: Message
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(message.content)
+                .textSelection(.enabled)
+                .foregroundColor(.red)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 11)
+                        .fill(colorScheme == .dark ? Color(.controlBackgroundColor) : Color.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 11)
+                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                        )
+                )
         }
     }
 }

@@ -10,6 +10,7 @@ class LLMViewModel: ObservableObject {
     @Published var processingProgress: Double = 0
     @Published var isLoadingSession = false
     @Published var loadedSessions = Set<UUID>()
+    @Published var searchTerm: String = ""
     
     private let modelHandler = LLMModelHandler()
     private let sessionsKey = "chatSessions"
@@ -38,6 +39,14 @@ class LLMViewModel: ObservableObject {
             return !credentials.apiKey.isEmpty
         }
         return false
+    }
+    
+    var filteredMessages: [Message]? {
+        guard let session = currentSession else { return nil }
+        if searchTerm.isEmpty { return session.messages }
+        return session.messages.filter { message in
+            message.content.localizedCaseInsensitiveContains(searchTerm)
+        }
     }
     
     init() {

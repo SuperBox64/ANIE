@@ -3,12 +3,13 @@ import AppKit
 
 struct UserMessageView: View {
     let message: Message
+    let isSelected: Bool
     @Environment(\.colorScheme) private var colorScheme
     @State private var copiedIndex: Int?
     @State private var isCopied = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .trailing, spacing: 4) {
             let blocks = extractCodeBlocks(from: message.content)
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
@@ -26,7 +27,7 @@ struct UserMessageView: View {
                                 .padding(.trailing, 3)
                                 .padding(.bottom, 3)
                         }
-                        .background(isCode ? 
+                        .background(isCode ?
                             (colorScheme == .dark ? Color.black : Color.white) :
                             Color(nsColor: NSColor.windowBackgroundColor).opacity(0.3))
                         .overlay(
@@ -36,13 +37,9 @@ struct UserMessageView: View {
                         .cornerRadius(8)
                         .padding(6)
                     } else {
-                        Text(try! AttributedString(markdown: block.content, options: .init(
-                            allowsExtendedAttributes: true,
-                            interpretedSyntax: .inlineOnlyPreservingWhitespace,
-                            failurePolicy: .returnPartiallyParsedIfPossible
-                        )))
-                        .textSelection(.enabled)
-                        .foregroundColor(.white)
+                        Text(formatMarkdown(block.content))
+                            .textSelection(.enabled)
+                            .foregroundColor(.white)
                     }
                 }
                 .transaction { transaction in
@@ -52,9 +49,11 @@ struct UserMessageView: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 6)
-        .background(Color.accentColor)
-        .cornerRadius(11)
-        .frame(maxWidth: .infinity, alignment: .trailing)
+        .background(
+            RoundedRectangle(cornerRadius: 11)
+                .fill(isSelected ? Color.blue : Color.accentColor)
+                .shadow(color: Color.black.opacity(0.1), radius: 1, x: 0, y: 1)
+        )
     }
     
     private func copyButton(for content: String, index: Int? = nil) -> some View {
@@ -92,8 +91,7 @@ struct UserMessageView: View {
                 
                 Image(systemName: isCopiedState ? "checkmark" : "doc.on.doc")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isCopiedState ? Color.green : 
-                        (colorScheme == .dark ? .white : .black))
+                    .foregroundColor(isCopiedState ? Color.green : .white)
                     .animation(.spring(response: 0.2), value: isCopiedState)
                     .scaleEffect(isCopiedState ? 1.2 : 1.0)
                     .rotationEffect(.degrees(isCopiedState ? 0 : -360))
