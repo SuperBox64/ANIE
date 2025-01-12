@@ -22,8 +22,16 @@ struct LLMChatView: View {
     @FocusState private var isTextFieldFocused: Bool
     @State private var showingClearDialog = false
     @State private var currentSearchIndex: Int = 0
-    @State private var selectedMessageId: UUID?
-    @Environment(\.colorScheme) private var colorScheme
+    @State private var selectedMessageId: UUID? = nil
+    
+    private func scrollToMessage(_ messageId: UUID) {
+        selectedMessageId = messageId
+        if let proxy = scrollProxy {
+            withAnimation {
+                proxy.scrollTo(messageId, anchor: .center)
+            }
+        }
+    }
     
     var body: some View {
         HSplitView {
@@ -32,82 +40,68 @@ struct LLMChatView: View {
             VStack(spacing: 0) {
                 // Top toolbar
                 HStack {
-                    GeometryReader { geometry in
-                        HStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.secondary)
-                                
-                            Text(viewModel.searchTerm.isEmpty ? "0 of 0" : "\(currentSearchIndex + 1) of \(viewModel.filteredMessages?.count ?? 0)")
-                                .foregroundColor(.secondary)
-                                .font(.system(size: 11))
-                                .frame(width: 50)
+                    // Search bar
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
                             
-                            Button(action: {
-                                if let messages = viewModel.filteredMessages, !messages.isEmpty {
-                                    if currentSearchIndex > 0 {
-                                        currentSearchIndex -= 1
-                                        scrollToMessage(messages[currentSearchIndex].id)
-                                    }
+                        Text(viewModel.searchTerm.isEmpty ? "0 of 0" : "\(currentSearchIndex + 1) of \(viewModel.filteredMessages?.count ?? 0)")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 11))
+                            .frame(width: 50)
+                        
+                        Button(action: {
+                            if let messages = viewModel.filteredMessages, !messages.isEmpty {
+                                if currentSearchIndex > 0 {
+                                    currentSearchIndex -= 1
+                                    scrollProxy?.scrollTo(messages[currentSearchIndex].id, anchor: .center)
                                 }
-                            }) {
-                                Image(systemName: "chevron.up")
-                                    .foregroundColor(.white)
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.red)
-                            .help("Previous match (⇧⌘G)")
-                            .keyboardShortcut("g", modifiers: [.command, .shift])
-                            .disabled(viewModel.searchTerm.isEmpty || viewModel.filteredMessages?.isEmpty ?? true || currentSearchIndex == 0)
-                            .opacity(viewModel.searchTerm.isEmpty ? 0.5 : 1.0)
-                            
-                            Button(action: {
-                                if let messages = viewModel.filteredMessages, !messages.isEmpty {
-                                    if currentSearchIndex < messages.count - 1 {
-                                        currentSearchIndex += 1
-                                        scrollToMessage(messages[currentSearchIndex].id)
-                                    }
-                                }
-                            }) {
-                                Image(systemName: "chevron.down")
-                                    .foregroundColor(.white)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.green)
-                            .help("Next match (⌘G)")
-                            .keyboardShortcut("g", modifiers: .command)
-                            .disabled(viewModel.searchTerm.isEmpty || viewModel.filteredMessages?.isEmpty ?? true || (viewModel.filteredMessages.map { currentSearchIndex >= $0.count - 1 } ?? true))
-                            .opacity(viewModel.searchTerm.isEmpty ? 0.5 : 1.0)
-                            
-                            TextField("Search messages...", text: $viewModel.searchTerm)
-                                .textFieldStyle(PlainTextFieldStyle())
-                                .frame(maxWidth: .infinity)
-                                .onChange(of: viewModel.searchTerm) { newValue in
-                                    // Reset search index when search term changes
-                                    currentSearchIndex = 0
-                                    // Clear highlight when search is cleared
-                                    if newValue.isEmpty {
-                                        selectedMessageId = nil
-                                    }
-                                    // If we have matches, scroll to first one
-                                    if let messages = viewModel.filteredMessages, !messages.isEmpty {
-                                        scrollToMessage(messages[0].id)
-                                    }
-                                }
+                        }) {
+                            Image(systemName: "chevron.up")
+                                .foregroundColor(.white)
                         }
-                        .padding(6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(colorScheme == .dark ? Color.black : Color.white)
-                                .shadow(color: Color(.separatorColor).opacity(0.5), radius: 2)
-                        )
-                        .padding(.leading, 68)
-                        .padding(.trailing, 18)
-                        .padding(.top, 10)
-                        .padding(.bottom, 10)
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                        .help("Previous match (⇧⌘G)")
+                        .keyboardShortcut("g", modifiers: [.command, .shift])
+                        .disabled(viewModel.searchTerm.isEmpty || viewModel.filteredMessages?.isEmpty ?? true || currentSearchIndex == 0)
+                        .opacity(viewModel.searchTerm.isEmpty ? 0.5 : 1.0)
+                        
+                        Button(action: {
+                            if let messages = viewModel.filteredMessages, !messages.isEmpty {
+                                if currentSearchIndex < messages.count - 1 {
+                                    currentSearchIndex += 1
+                                    scrollProxy?.scrollTo(messages[currentSearchIndex].id, anchor: .center)
+                                }
+                            }
+                        }) {
+                            Image(systemName: "chevron.down")
+                                .foregroundColor(.white)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.green)
+                        .help("Next match (⌘G)")
+                        .keyboardShortcut("g", modifiers: .command)
+                        .disabled(viewModel.searchTerm.isEmpty || viewModel.filteredMessages?.isEmpty ?? true || (viewModel.filteredMessages.map { currentSearchIndex >= $0.count - 1 } ?? true))
+                        .opacity(viewModel.searchTerm.isEmpty ? 0.5 : 1.0)
+                        
+                        TextField("Search messages...", text: $viewModel.searchTerm)
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .frame(maxWidth: .infinity)
+                            .onChange(of: viewModel.searchTerm) { newValue in
+                                // Reset search index when search term changes
+                                currentSearchIndex = 0
+                            }
                     }
-                    .frame(height: 40)
+                    .padding(6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(.textBackgroundColor))
+                            .shadow(color: Color(.separatorColor).opacity(0.5), radius: 2)
+                    )
+                    .frame(maxWidth: .infinity)
                     
-                    Spacer()
                     Button {
                         showingConfiguration = true
                     } label: {
@@ -122,18 +116,22 @@ struct LLMChatView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .padding([.top, .trailing], 8)
                 }
-                .padding(.bottom, 10)
+                .padding([.top, .horizontal], 8)
                 
                 // Messages ScrollView
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 9) {
-                            if let messages = viewModel.filteredMessages {
-                                ForEach(messages) { message in
-                                    MessageView(message: message, isSelected: selectedMessageId == message.id)
-                                        .id(message.id)
+                            if let session = viewModel.currentSession {
+                                ForEach(session.messages) { message in
+                                    MessageView(
+                                        message: message, 
+                                        searchTerm: viewModel.searchTerm,
+                                        isCurrentSearchResult: viewModel.filteredMessages?.indices.contains(currentSearchIndex) == true && 
+                                            viewModel.filteredMessages?[currentSearchIndex].id == message.id
+                                    )
+                                    .id(message.id)
                                 }
                             }
                         }
@@ -158,9 +156,6 @@ struct LLMChatView: View {
                         withAnimation {
                             proxy.scrollTo("bottom", anchor: .bottom)
                         }
-                    }
-                    .onAppear {
-                        scrollProxy = proxy
                     }
                 }
                 
@@ -290,15 +285,6 @@ struct LLMChatView: View {
         print(userInput)
         Task {
             await viewModel.processUserInput(messageToSend)
-        }
-    }
-    
-    private func scrollToMessage(_ id: UUID) {
-        if let proxy = scrollProxy {
-            withAnimation {
-                proxy.scrollTo(id, anchor: .center)
-                selectedMessageId = id
-            }
         }
     }
 } 

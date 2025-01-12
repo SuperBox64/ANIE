@@ -41,14 +41,6 @@ class LLMViewModel: ObservableObject {
         return false
     }
     
-    var filteredMessages: [Message]? {
-        guard let session = currentSession else { return nil }
-        if searchTerm.isEmpty { return session.messages }
-        return session.messages.filter { message in
-            message.content.localizedCaseInsensitiveContains(searchTerm)
-        }
-    }
-    
     init() {
         // Initialize dependencies
         let preprocessor = MessagePreprocessor()
@@ -396,6 +388,13 @@ class LLMViewModel: ObservableObject {
                 
                 saveSessions()
             }
+        }
+    }
+    
+    var filteredMessages: [Message]? {
+        guard let session = currentSession, !searchTerm.isEmpty else { return nil }
+        return session.messages.filter { message in
+            message.content.localizedCaseInsensitiveContains(searchTerm)
         }
     }
 } 

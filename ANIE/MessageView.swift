@@ -1,13 +1,12 @@
 import SwiftUI
 import AppKit
-import ANIE
 
 
 class MessageObserver: ObservableObject {
     static let shared = MessageObserver()
     @Published private(set) var maxWidthX: CGFloat = 600
     
-    init() {
+    private init() {
         // Set initial value
         updateMaxWidth()
         
@@ -36,26 +35,90 @@ class MessageObserver: ObservableObject {
 
 struct MessageView: View {
     let message: Message
-    let isSelected: Bool
     @ObservedObject private var messageObserver = MessageObserver.shared
+    let searchTerm: String
+    let isCurrentSearchResult: Bool
     
+    private func highlightedText(_ text: String) -> AnyView {
+        guard !searchTerm.isEmpty else { return AnyView(Text(text)) }
+        
+        let searchTermLowercased = searchTerm.lowercased()
+        let textLowercased = text.lowercased()
+        
+        if let range = textLowercased.range(of: searchTermLowercased) {
+            return AnyView(HStack(spacing: 0) {
+                Text(String(text[..<range.lowerBound]))
+                Text(String(text[range]))
+                    .foregroundColor(.black)
+                    .background(Color.yellow)
+                    .bold()
+                Text(String(text[range.upperBound...]))
+            })
+        }
+        
+        return AnyView(Text(text))
+    }
+
     var body: some View {
-        VStack(alignment: .leading) {
+        HStack(alignment: .top, spacing: 0) {
+            if !message.isUser {
+                VStack(spacing: 2) {
+                    Text("ANIE")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 3)
+                        .padding(.bottom, 1)
+                    
+                    if message.usedLocalAI {
+                        Text("🧠")
+                            .font(.system(size: 14))
+                            .padding(.bottom, 2)
+                    } else if message.usedBERT {
+                        Text("🤖")
+                            .font(.system(size: 14))
+                            .padding(.bottom, 2)
+                    }
+                }
+                .frame(width: 40, alignment: .trailing)
+            }
+            
             if message.isError {
-                ErrorMessageView(message: message)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // Error message - always red background with white text
+                VStack(alignment: .trailing, spacing: 0) {
+                    highlightedText(message.content)
+                        .textSelection(.enabled)
+                        .foregroundColor(.white)
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                }
+                .background(Color.red)
+                .cornerRadius(11)
+                .padding(.leading, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 11)
+                        .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
+                )
             } else if message.isUser {
                 HStack (alignment: .top) {
                     Spacer()
-                    UserMessageView(message: message, isSelected: isSelected)
+                    UserMessageView(message: message)
                         .frame(width: messageObserver.maxWidthX, alignment: .trailing)
                         .padding(.trailing, 5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 11)
+                                .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
+                        )
                 }
             } else {
                 HStack (alignment: .top) {
-                    AIMessageView(message: message, isSelected: isSelected)
+                    AIMessageView(message: message)
                         .frame(width: messageObserver.maxWidthX, alignment: .leading)
                         .padding(.leading, 5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 11)
+                                .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
+                        )
                     Spacer()
                 }
             }
@@ -70,30 +133,6 @@ struct MessageView: View {
         .padding(.horizontal, 7)
         .transaction { transaction in
             transaction.animation = nil
-        }
-    }
-}
-
-
-struct ErrorMessageView: View {
-    let message: Message
-    @Environment(\.colorScheme) private var colorScheme
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(message.content)
-                .textSelection(.enabled)
-                .foregroundColor(.red)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 11)
-                        .fill(colorScheme == .dark ? Color(.controlBackgroundColor) : Color.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 11)
-                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                        )
-                )
         }
     }
 }

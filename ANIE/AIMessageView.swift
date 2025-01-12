@@ -3,7 +3,6 @@ import AppKit
 
 struct AIMessageView: View {
     let message: Message
-    let isSelected: Bool
     @Environment(\.colorScheme) private var colorScheme
     @State private var copiedIndex: Int?
     @State private var isCopied = false
@@ -13,8 +12,9 @@ struct AIMessageView: View {
             let blocks = extractCodeBlocks(from: message.content)
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
-                    if block.isCode {
-                        let isCode = true
+                    if block.isCode  {
+                        ////let swiftKeywords = ["func ", "class ", "struct ", "print", "var ", "enum ", "case ", "Swift ", "Hello, World!"]
+                        let isCode = true // swiftKeywords.contains { block.content.contains($0) }
                         
                         ZStack(alignment: .bottomTrailing) {
                             Text(formatSwiftCode(block.content, colorScheme: colorScheme))
@@ -39,6 +39,7 @@ struct AIMessageView: View {
                     } else {
                         Text(formatMarkdown(block.content))
                             .textSelection(.enabled)
+                            .foregroundColor(Color(nsColor: NSColor.labelColor))
                     }
                 }
                 .transaction { transaction in
@@ -48,15 +49,8 @@ struct AIMessageView: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 11)
-                .fill(isSelected ? Color.blue.opacity(0.3) : 
-                    (colorScheme == .dark ? Color(.windowBackgroundColor) : Color.white))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 11)
-                        .stroke(Color(.separatorColor), lineWidth: 1)
-                )
-        )
+        .background(Color(nsColor: NSColor.windowBackgroundColor))
+        .cornerRadius(11)
     }
     
     private func copyButton(for content: String, index: Int? = nil) -> some View {
