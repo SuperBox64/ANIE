@@ -10,12 +10,12 @@ extension View {
         
         // Colors from HTML with exact hex values
         let defaultColor = Color(nsColor: NSColor(red: 0xd0/255, green: 0xe8/255, blue: 0xdc/255, alpha: 1.0))   // #d0e8dc - default text
-        let keywordPink = Color(nsColor: NSColor(red: 0xfc/255, green: 0x39/255, blue: 0x50/255, alpha: 1.0))    // #fc3950 - keywords (bold)
+        let keywordPink = Color(nsColor: NSColor(red: 0xff/255, green: 0x60/255, blue: 0x70/255, alpha: 1.0))    // #ff6070 - keywords (bold)
         let commentGray = Color(nsColor: NSColor(red: 0x75/255, green: 0x89/255, blue: 0x92/255, alpha: 1.0))    // #758992 - comments
         let classGreen = Color(nsColor: NSColor(red: 0x89/255, green: 0xff/255, blue: 0x2b/255, alpha: 1.0))     // #89ff2b - class names
-        let varBlue = Color(nsColor: NSColor(red: 0x0d/255, green: 0x6b/255, blue: 0xe0/255, alpha: 1.0))        // #0d6be0 - variables/functions
+        let varBlue = Color(nsColor: NSColor(red: 0x60/255, green: 0xa5/255, blue: 0xff/255, alpha: 1.0))        // #60a5ff - variables/functions
         let typeOrange = Color(nsColor: NSColor(red: 0xfd/255, green: 0x97/255, blue: 0x09/255, alpha: 1.0))     // #fd9709 - Int/Double/Float
-        let propGreen = Color(nsColor: NSColor(red: 0x1c/255, green: 0xb8/255, blue: 0x26/255, alpha: 1.0))      // #1cb826 - property access
+        let propGreen = Color(nsColor: NSColor(red: 0x30/255, green: 0xd0/255, blue: 0x40/255, alpha: 1.0))      // #30d040 - property access
         let methodGreen = Color(nsColor: NSColor(red: 0x49/255, green: 0xc1/255, blue: 0x75/255, alpha: 1.0))    // #49c175 - method calls
         let typeCyan = Color(nsColor: NSColor(red: 0x27/255, green: 0xf8/255, blue: 0xff/255, alpha: 1.0))       // #27f8ff - Student type
         let funcMagenta = Color(nsColor: NSColor(red: 0xd0/255, green: 0x45/255, blue: 0xb7/255, alpha: 1.0))    // #d045b7 - print/append/forEach
@@ -38,11 +38,25 @@ extension View {
                 }
             }
         }
-    
         
         // Color Swift keywords pink
-        if let regex = try? NSRegularExpression(pattern: "\\b(import|class|let|var|init|func|return|self|struct|in)\\b", options: []) {
+        if let regex = try? NSRegularExpression(pattern: "\\b(import|class|let|var|init|func|return|self|struct|in|for)\\b", options: []) {
             applyColor(regex, keywordPink, bold: true)
+        }
+        
+        // Color variable names after let/var blue
+        if let regex = try? NSRegularExpression(pattern: "(?<=\\b(?:let|var)\\s+)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*=)", options: []) {
+            applyColor(regex, varBlue)
+        }
+
+        // Color function names and parameter labels mint green
+        if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()|[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)", options: []) {
+            applyColor(regex, mintGreen)
+        }
+
+        // Color function arguments green
+        if let regex = try? NSRegularExpression(pattern: "(?<=:\\s*)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\)?)", options: []) {
+            applyColor(regex, propGreen)
         }
         
         // Color class/struct names lime green
@@ -50,13 +64,8 @@ extension View {
             applyColor(regex, classGreen)
         }
         
-        // Color custom types cyan
-        if let regex = try? NSRegularExpression(pattern: "\\b[A-Z][a-zA-Z0-9_]*\\b(?!\\s*\\{)", options: []) {
-            applyColor(regex, typeCyan)
-        }
-        
-        // Color array type names bright blue
-        if let regex = try? NSRegularExpression(pattern: "(?<=\\[)[A-Z][a-zA-Z0-9_]*(?=\\])", options: []) {
+        // Combined pattern for typeCyan
+        if let regex = try? NSRegularExpression(pattern: "\\b[A-Z][a-zA-Z0-9_]*\\b(?!\\s*\\{)|(?<=\\[)[A-Z][a-zA-Z0-9_]*(?=\\])", options: []) {
             applyColor(regex, typeCyan)
         }
         
@@ -65,14 +74,13 @@ extension View {
             applyColor(regex, typeOrange)
         }
         
-       
-        // Color variable names after let/var blue
-        if let regex = try? NSRegularExpression(pattern: "(?<=\\b(?:let|var)\\s)[^=:]+(?=\\s*[=:])", options: []) {
+        // Combined pattern for all blue coloring
+        if let regex = try? NSRegularExpression(pattern: "(?:(?<=\\b(?:let|var)\\s)[^=:]+(?=\\s*[=:])|(?<=func\\s)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()|[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)|_(?=[a-zA-Z]))", options: []) {
             applyColor(regex, varBlue)
         }
 
-        // Color property access after self. in green
-        if let regex = try? NSRegularExpression(pattern: "(?<=self\\.)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s|$)", options: []) {
+        // Combined pattern for all property green coloring
+        if let regex = try? NSRegularExpression(pattern: "(?:(?<=self\\.)|(?<=\\\\\\())[a-zA-Z_][a-zA-Z0-9_\\.]*(?=\\)|\\s|$)|[a-zA-Z_][a-zA-Z0-9_]*(?=\\.(?:append|isEmpty|count|forEach|contains|[a-zA-Z_][a-zA-Z0-9_]*\\())|(?<=\\()[a-zA-Z_][a-zA-Z0-9_]*(?=\\))", options: []) {
             applyColor(regex, propGreen)
         }
 
@@ -81,80 +89,21 @@ extension View {
             applyColor(regex, numberYellow)
         }
 
-        // Color identifiers before .reduce in green
-        if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\.reduce\\b)", options: []) {
-            applyColor(regex, propGreen)
-        }
-
-        // Color identifiers before .isEmpty or .count in green
-        if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\.(isEmpty|count)\\b)", options: []) {
-            applyColor(regex, propGreen)
-        }
-
-        // Color identifiers before method calls in green
-        if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\.(?:append|reduce|isEmpty|count|forEach|[a-zA-Z_][a-zA-Z0-9_]*\\())", options: []) {
-            applyColor(regex, propGreen)
-        }
-
-        // Color method names purple
-        if let regex = try? NSRegularExpression(pattern: "(?<=\\.)(append)\\b", options: []) {
+        // Combined pattern for methodPurple
+        if let regex = try? NSRegularExpression(pattern: "\\.(?:append|isEmpty|count|forEach)\\b", options: []) {
             applyColor(regex, methodPurple)
         }
 
-        // Color standard Swift methods light purple
-        if let regex = try? NSRegularExpression(pattern: "\\.(?:isEmpty|count)\\b", options: []) {
-            applyColor(regex, methodPurple)
-        }
-
-        // Color function names blue
-        if let regex = try? NSRegularExpression(pattern: "(?<=func\\s)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()", options: []) {
-            applyColor(regex, varBlue)
-        }
-
-        // Color parameter names blue in parameter lists
-        if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)", options: []) {
-            applyColor(regex, varBlue)
-        }
-
-        // Color underscores blue
-        if let regex = try? NSRegularExpression(pattern: "_(?=[a-zA-Z])", options: []) {
-            applyColor(regex, varBlue)
-        }
+       
 
         // Color print keyword purple
-        if let regex = try? NSRegularExpression(pattern: "\\bprint\\b", options: []) {
+        if let regex = try? NSRegularExpression(pattern: "\\bprint\\b|\\bmax\\b", options: []) {
             applyColor(regex, funcMagenta)
         }
         
-        // Color string contents orange (excluding interpolation)
-        if let regex = try? NSRegularExpression(pattern: "\"[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*\"", options: []) {
-            applyColor(regex, stringOrange)
-        }
-        
-        // Color string interpolation delimiters default color
-        if let regex = try? NSRegularExpression(pattern: "\\\\\\(|\\)", options: []) {
-            applyColor(regex, defaultColor)
-        }
-        
-        // Color interpolated variables green
-        if let regex = try? NSRegularExpression(pattern: "(?<=\\\\\\()[a-zA-Z_][a-zA-Z0-9_\\.]*(?=\\))", options: []) {
-            applyColor(regex, propGreen)
-        }
-
-    
-        // Color forEach purple
-        if let regex = try? NSRegularExpression(pattern: "\\.forEach\\b", options: []) {
-            applyColor(regex, methodPurple)
-        }
-
         // Color method calls mint green
-        if let regex = try? NSRegularExpression(pattern: "\\.(?!(?:append|reduce|isEmpty|count|forEach)\\b)[a-zA-Z_][a-zA-Z0-9_]*\\(", options: []) {
-            applyColor(regex, mintGreen)
-        }
-
-        // Color method arguments in green
-        if let regex = try? NSRegularExpression(pattern: "(?<=\\()[a-zA-Z_][a-zA-Z0-9_]*(?=\\))", options: []) {
-            applyColor(regex, propGreen)
+        if let regex = try? NSRegularExpression(pattern: "\\.(?!(?:append|isEmpty|count|forEach)\\b)[a-zA-Z_][a-zA-Z0-9_]*\\(", options: []) {
+            applyColor(regex, methodPurple)
         }
 
         // Color variable properties green when after let/var at line start
@@ -162,13 +111,48 @@ extension View {
             applyColor(regex, propGreen)
         }
 
-        // Color parameter names blue in variable declarations
-        if let regex = try? NSRegularExpression(pattern: "(?<=^\\s*(?:let|var)\\s+[^=]+?=\\s*[A-Z][a-zA-Z0-9_]*\\()[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)", options: [.anchorsMatchLines]) {
-            applyColor(regex, mintGreen)
+        // Color parameter labels and arguments in function calls green
+        if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)|(?<=:\\s*)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\)?)", options: []) {
+            applyColor(regex, propGreen)
+        }
+        
+        // Color array names after 'in' in green
+        if let regex = try? NSRegularExpression(pattern: "(?<=\\sin\\s)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\{)", options: []) {
+            applyColor(regex, propGreen)
+        }
+        
+        // Color variables before += in green
+        if let regex = try? NSRegularExpression(pattern: "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b(?=\\s*\\+=)", options: []) {
+            applyColor(regex, propGreen)
+        }
+        
+        // Color variables after += in green
+        if let regex = try? NSRegularExpression(pattern: "(?<=\\+=)\\s*[a-zA-Z_][a-zA-Z0-9_]*", options: []) {
+            applyColor(regex, propGreen)
+        }
+        
+        // Color variables after return in green
+        if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*(?://|$))", options: []) {
+            applyColor(regex, propGreen)
         }
 
-        // Color text after import white 
+        // Color text after import white (moved to end)
         if let regex = try? NSRegularExpression(pattern: "(?<=import\\s)[^\\n]+", options: []) {
+            applyColor(regex, defaultColor)
+        }
+
+        // Color string contents orange (excluding interpolation)
+        if let regex = try? NSRegularExpression(pattern: "\"[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*\"", options: []) {
+            applyColor(regex, stringOrange)
+        }
+        
+         // Combined pattern for methodPurple
+        if let regex = try? NSRegularExpression(pattern: "\\.(?:reduce)\\b", options: []) {
+            applyColor(regex, defaultColor)
+        }
+        
+        // Color string interpolation delimiters default color
+        if let regex = try? NSRegularExpression(pattern: "\\\\\\(|\\)", options: []) {
             applyColor(regex, defaultColor)
         }
         
@@ -177,10 +161,12 @@ extension View {
             applyColor(regex, commentGray)
         }
 
-        // Color property names mint green in let declarations
-        if let regex = try? NSRegularExpression(pattern: "(?<=^\\s*let\\s+[^=]+?=\\s*[A-Z][a-zA-Z0-9_]*\\()[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)", options: [.anchorsMatchLines]) {
-            applyColor(regex, mintGreen)
+        // Color MARK/TODO comments bold gray
+        if let regex = try? NSRegularExpression(pattern: "//\\s*(?:MARK:|TODO:).*$", options: [.anchorsMatchLines]) {
+            applyColor(regex, commentGray, bold: true)
         }
+     
+       
 
         return result
     }
@@ -263,7 +249,7 @@ public func formatMarkdown(_ text: String) -> AttributedString {
     return AttributedString(text)
 }
 
-func extractCodeBlocks(from text: String) -> [(content: String, isCode: Bool)] {
+public func extractCodeBlocks(from text: String) -> [(content: String, isCode: Bool)] {
     var blocks: [(String, Bool)] = []
     var currentText = ""
     var isInCodeBlock = false

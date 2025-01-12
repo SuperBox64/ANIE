@@ -13,11 +13,7 @@ struct UserMessageView: View {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
                     if block.isCode {
-                        let isSwift = block.content.contains("func ") || 
-                                    block.content.contains("class ") || 
-                                    block.content.contains("struct ") ||
-                                    block.content.contains("let ") ||
-                                    block.content.contains("var ")
+                        let isCode = true
                         
                         ZStack(alignment: .bottomTrailing) {
                             Text(formatSwiftCode(block.content, colorScheme: colorScheme))
@@ -30,7 +26,7 @@ struct UserMessageView: View {
                                 .padding(.trailing, 3)
                                 .padding(.bottom, 3)
                         }
-                        .background(isSwift ? 
+                        .background(isCode ? 
                             (colorScheme == .dark ? Color.black : Color.white) :
                             Color(nsColor: NSColor.windowBackgroundColor).opacity(0.3))
                         .overlay(
