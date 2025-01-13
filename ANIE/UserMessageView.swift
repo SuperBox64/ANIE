@@ -7,9 +7,16 @@ struct UserMessageView: View {
     @State private var copiedIndex: Int?
     @State private var isCopied = false
     
+    private func highlightedText(_ text: String) -> some View {
+        Text(text)
+            .textSelection(.enabled)
+            .foregroundColor(.white)
+    }
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .trailing, spacing: 4) {
             let blocks = extractCodeBlocks(from: message.content)
+            highlightedText(message.content)
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
                     if block.isCode {
@@ -53,8 +60,11 @@ struct UserMessageView: View {
         .padding(.horizontal, 6)
         .padding(.vertical, 6)
         .background(Color.accentColor)
+        .overlay(
+            RoundedRectangle(cornerRadius: 11)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+        )
         .cornerRadius(11)
-        .frame(maxWidth: .infinity, alignment: .trailing)
     }
     
     private func copyButton(for content: String, index: Int? = nil) -> some View {

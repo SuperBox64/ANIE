@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 private struct ViewHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
@@ -45,7 +46,7 @@ struct LLMChatView: View {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
                             
-                        Text(viewModel.searchTerm.isEmpty ? "0 of 0" : "\(currentSearchIndex + 1) of \(viewModel.filteredMessages?.count ?? 0)")
+                        Text(viewModel.activeSearchTerm.isEmpty ? "0 of 0" : "\(currentSearchIndex + 1) of \(viewModel.filteredMessages?.count ?? 0)")
                             .foregroundColor(.secondary)
                             .font(.system(size: 11))
                             .frame(width: 50)
@@ -65,8 +66,8 @@ struct LLMChatView: View {
                         .tint(.red)
                         .help("Previous match (⇧⌘G)")
                         .keyboardShortcut("g", modifiers: [.command, .shift])
-                        .disabled(viewModel.searchTerm.isEmpty || viewModel.filteredMessages?.isEmpty ?? true || currentSearchIndex == 0)
-                        .opacity(viewModel.searchTerm.isEmpty ? 0.5 : 1.0)
+                        .disabled(viewModel.activeSearchTerm.isEmpty || viewModel.filteredMessages?.isEmpty ?? true || currentSearchIndex == 0)
+                        .opacity(viewModel.activeSearchTerm.isEmpty ? 0.5 : 1.0)
                         
                         Button(action: {
                             if let messages = viewModel.filteredMessages, !messages.isEmpty {
@@ -83,15 +84,32 @@ struct LLMChatView: View {
                         .tint(.green)
                         .help("Next match (⌘G)")
                         .keyboardShortcut("g", modifiers: .command)
-                        .disabled(viewModel.searchTerm.isEmpty || viewModel.filteredMessages?.isEmpty ?? true || (viewModel.filteredMessages.map { currentSearchIndex >= $0.count - 1 } ?? true))
-                        .opacity(viewModel.searchTerm.isEmpty ? 0.5 : 1.0)
+                        .disabled(viewModel.activeSearchTerm.isEmpty || viewModel.filteredMessages?.isEmpty ?? true || (viewModel.filteredMessages.map { currentSearchIndex >= $0.count - 1 } ?? true))
+                        .opacity(viewModel.activeSearchTerm.isEmpty ? 0.5 : 1.0)
                         
                         TextField("Search messages...", text: $viewModel.searchTerm)
                             .textFieldStyle(PlainTextFieldStyle())
                             .frame(maxWidth: .infinity)
                             .onChange(of: viewModel.searchTerm) { newValue in
-                                // Reset search index when search term changes
+                                // Only reset index if we're not actively searching
+                                if viewModel.activeSearchTerm.isEmpty {
+                                    currentSearchIndex = 0
+                                }
+                            }
+                            .onSubmit {
+                                // Update active search term and trigger search
+                                viewModel.activeSearchTerm = viewModel.searchTerm
                                 currentSearchIndex = 0
+                                
+                                // Ensure we scroll to the first match
+                                if let messages = viewModel.filteredMessages, !messages.isEmpty {
+                                    // Give SwiftUI time to update the view
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                        withAnimation {
+                                            scrollProxy?.scrollTo(messages[0].id, anchor: .center)
+                                        }
+                                    }
+                                }
                             }
                     }
                     .padding(6)
@@ -127,7 +145,7 @@ struct LLMChatView: View {
                                 ForEach(session.messages) { message in
                                     MessageView(
                                         message: message, 
-                                        searchTerm: viewModel.searchTerm,
+                                        searchTerm: viewModel.activeSearchTerm,
                                         isCurrentSearchResult: viewModel.filteredMessages?.indices.contains(currentSearchIndex) == true && 
                                             viewModel.filteredMessages?[currentSearchIndex].id == message.id
                                     )
@@ -156,6 +174,9 @@ struct LLMChatView: View {
                         withAnimation {
                             proxy.scrollTo("bottom", anchor: .bottom)
                         }
+                    }
+                    .onAppear {
+                        scrollProxy = proxy
                     }
                 }
                 

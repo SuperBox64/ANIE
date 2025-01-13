@@ -39,7 +39,7 @@ struct MessageView: View {
     let searchTerm: String
     let isCurrentSearchResult: Bool
     
-    private func highlightedText(_ text: String) -> AnyView {
+    public func highlightedText(_ text: String) -> AnyView {
         guard !searchTerm.isEmpty else { return AnyView(Text(text)) }
         
         let searchTermLowercased = searchTerm.lowercased()
@@ -90,35 +90,37 @@ struct MessageView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal)
                         .padding(.vertical, 8)
+                        .background(Color.red)
+                        .cornerRadius(11)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 11)
+                                .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
+                        )
                 }
-                .background(Color.red)
-                .cornerRadius(11)
                 .padding(.leading, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 11)
-                        .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
-                )
             } else if message.isUser {
                 HStack (alignment: .top) {
                     Spacer()
                     UserMessageView(message: message)
-                        .frame(width: messageObserver.maxWidthX, alignment: .trailing)
-                        .padding(.trailing, 5)
+                        //.border(Color.red, width: 1)
                         .overlay(
                             RoundedRectangle(cornerRadius: 11)
                                 .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
                         )
+                        .frame(width: messageObserver.maxWidthX, alignment: .trailing)
+                        .padding(.trailing, 5)
                 }
             } else {
                 HStack (alignment: .top) {
                     AIMessageView(message: message)
-                        .frame(width: messageObserver.maxWidthX, alignment: .leading)
-                        .padding(.leading, 5)
+                        //.border(Color.red, width: 1)
                         .overlay(
                             RoundedRectangle(cornerRadius: 11)
                                 .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
                         )
+                        .frame(width: messageObserver.maxWidthX, alignment: .leading)
+                        .padding(.leading, 5)
                     Spacer()
                 }
             }

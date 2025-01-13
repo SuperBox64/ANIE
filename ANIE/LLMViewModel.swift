@@ -11,6 +11,7 @@ class LLMViewModel: ObservableObject {
     @Published var isLoadingSession = false
     @Published var loadedSessions = Set<UUID>()
     @Published var searchTerm: String = ""
+    @Published var activeSearchTerm: String = ""
     
     private let modelHandler = LLMModelHandler()
     private let sessionsKey = "chatSessions"
@@ -392,9 +393,9 @@ class LLMViewModel: ObservableObject {
     }
     
     var filteredMessages: [Message]? {
-        guard let session = currentSession, !searchTerm.isEmpty else { return nil }
+        guard let session = currentSession, !activeSearchTerm.isEmpty else { return nil }
         return session.messages.filter { message in
-            message.content.localizedCaseInsensitiveContains(searchTerm)
+            message.content.localizedCaseInsensitiveContains(activeSearchTerm)
         }
     }
 } 
