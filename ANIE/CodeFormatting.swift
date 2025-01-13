@@ -175,16 +175,42 @@ extension View {
 
         // Add search term highlighting at the end
         if !searchTerm.isEmpty {
-            let searchTermLowercased = searchTerm.lowercased()
+            // Split search term into individual words and filter out empty terms
+            let searchTerms = searchTerm.split(separator: " ")
+                .map(String.init)
+                .filter { !$0.isEmpty }
             let textLowercased = code.lowercased()
             
-            if let range = textLowercased.range(of: searchTermLowercased),
-               let attributedRange = Range(range, in: result) {
-                var highlightedText = result[attributedRange]
-                highlightedText.backgroundColor = .yellow
-                highlightedText.foregroundColor = .black
-                highlightedText.inlinePresentationIntent = .stronglyEmphasized
-                result.replaceSubrange(attributedRange, with: highlightedText)
+            // Find all matches for all terms
+            var allMatches: [(Range<String.Index>, String)] = []
+            for term in searchTerms {
+                let termLowercased = term.lowercased()
+                // Use word boundary pattern to match whole words only
+                let pattern = "\\b" + NSRegularExpression.escapedPattern(for: termLowercased) + "\\b"
+                if let regex = try? NSRegularExpression(pattern: pattern) {
+                    let matches = regex.matches(in: textLowercased, range: NSRange(location: 0, length: textLowercased.utf16.count))
+                    
+                    // Convert each match to a String.Index range
+                    for match in matches {
+                        if let range = Range(match.range, in: textLowercased) {
+                            allMatches.append((range, term))
+                        }
+                    }
+                }
+            }
+            
+            // Sort matches by location (in reverse order to not invalidate ranges)
+            allMatches.sort { $0.0.lowerBound > $1.0.lowerBound }
+            
+            // Apply highlighting to each match
+            for (range, _) in allMatches {
+                if let attributedRange = Range(range, in: result) {
+                    var highlightedText = result[attributedRange]
+                    highlightedText.backgroundColor = Color.yellow
+                    highlightedText.foregroundColor = Color.black
+                    highlightedText.inlinePresentationIntent = .stronglyEmphasized
+                    result.replaceSubrange(attributedRange, with: highlightedText)
+                }
             }
         }
 
@@ -193,7 +219,7 @@ extension View {
 }
 
 @MainActor
-public func formatMarkdown(_ text: String) -> AttributedString {
+public func formatMarkdown(_ text: String, searchTerm: String = "", isCurrentSearchResult: Bool = false) -> AttributedString {
     // Check if this is an error message
     if text.hasPrefix("Error:") || text.contains("API Error:") {
         var errorAttr = AttributedString(text)
@@ -259,6 +285,60 @@ public func formatMarkdown(_ text: String) -> AttributedString {
                 } else if let range = processed.range(of: content) {
                     // If we found it without the colon, just make it bold
                     processed[range].inlinePresentationIntent = .stronglyEmphasized
+                }
+            }
+        }
+        
+        // Add search term highlighting at the end
+        for line in lines {
+            if !searchTerm.isEmpty {
+                // Split search term into individual words and filter out empty terms
+                let searchTerms = searchTerm.split(separator: " ")
+                    .map(String.init)
+                    .filter { !$0.isEmpty }
+                let lineLowercased = line.lowercased()
+                
+                // Find all matches for all terms
+                var allMatches: [(Range<String.Index>, String)] = []
+                for term in searchTerms {
+                    let termLowercased = term.lowercased()
+                    // Use word boundary pattern to match whole words only
+                    let pattern = "\\b" + NSRegularExpression.escapedPattern(for: termLowercased) + "\\b"
+                    if let regex = try? NSRegularExpression(pattern: pattern),
+                       let lineRange = processed.range(of: line) {
+                        let matches = regex.matches(in: lineLowercased, range: NSRange(location: 0, length: lineLowercased.utf16.count))
+                        
+                        // Convert each match to a String.Index range
+                        for match in matches {
+                            if let range = Range(match.range, in: lineLowercased) {
+                                allMatches.append((range, term))
+                            }
+                        }
+                    }
+                }
+                
+                // Sort matches by location (in reverse order to not invalidate ranges)
+                allMatches.sort { $0.0.lowerBound > $1.0.lowerBound }
+                
+                // Apply highlighting to each match
+                if let lineRange = processed.range(of: line) {
+                    for (range, _) in allMatches {
+                        let startOffset = lineLowercased.distance(from: lineLowercased.startIndex, to: range.lowerBound)
+                        let endOffset = lineLowercased.distance(from: lineLowercased.startIndex, to: range.upperBound)
+                        
+                        let originalStart = line.index(line.startIndex, offsetBy: startOffset)
+                        let originalEnd = line.index(line.startIndex, offsetBy: endOffset)
+                        let originalRange = originalStart..<originalEnd
+                        
+                        // Convert the range to the AttributedString
+                        if let attributedRange = Range(originalRange, in: processed) {
+                            var highlightedText = processed[attributedRange]
+                            highlightedText.backgroundColor = Color.yellow
+                            highlightedText.foregroundColor = Color.black
+                            highlightedText.inlinePresentationIntent = .stronglyEmphasized
+                            processed.replaceSubrange(attributedRange, with: highlightedText)
+                        }
+                    }
                 }
             }
         }

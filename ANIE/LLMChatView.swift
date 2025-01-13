@@ -102,7 +102,7 @@ struct LLMChatView: View {
                             }
                             .onSubmit {
                                 // Update active search term and trigger search
-                                viewModel.activeSearchTerm = viewModel.searchTerm
+                                viewModel.activeSearchTerm = viewModel.searchTerm.trimmingCharacters(in: .whitespacesAndNewlines)
                                 currentSearchIndex = 0
                                 
                                 // Ensure we scroll to the first match
