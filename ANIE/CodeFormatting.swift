@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 
 extension View {
-    func formatSwiftCode(_ code: String, colorScheme: ColorScheme) -> AttributedString {
+    func formatSwiftCode(_ code: String, colorScheme: ColorScheme, searchTerm: String = "", isCurrentSearchResult: Bool = false) -> AttributedString {
         var result = AttributedString(code)
         
         let text = code as NSString
@@ -172,6 +172,21 @@ extension View {
         }
      
     
+
+        // Add search term highlighting at the end
+        if !searchTerm.isEmpty {
+            let searchTermLowercased = searchTerm.lowercased()
+            let textLowercased = code.lowercased()
+            
+            if let range = textLowercased.range(of: searchTermLowercased),
+               let attributedRange = Range(range, in: result) {
+                var highlightedText = result[attributedRange]
+                highlightedText.backgroundColor = .yellow
+                highlightedText.foregroundColor = .black
+                highlightedText.inlinePresentationIntent = .stronglyEmphasized
+                result.replaceSubrange(attributedRange, with: highlightedText)
+            }
+        }
 
         return result
     }

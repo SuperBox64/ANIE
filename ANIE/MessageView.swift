@@ -39,7 +39,7 @@ struct MessageView: View {
     let searchTerm: String
     let isCurrentSearchResult: Bool
     
-    public func highlightedText(_ text: String) -> AnyView {
+    private func highlightedText(_ text: String) -> AnyView {
         guard !searchTerm.isEmpty else { return AnyView(Text(text)) }
         
         let searchTermLowercased = searchTerm.lowercased()
@@ -102,7 +102,7 @@ struct MessageView: View {
             } else if message.isUser {
                 HStack (alignment: .top) {
                     Spacer()
-                    UserMessageView(message: message)
+                    UserMessageView(message: message, searchTerm: searchTerm, isCurrentSearchResult: isCurrentSearchResult)
                         //.border(Color.red, width: 1)
                         .overlay(
                             RoundedRectangle(cornerRadius: 11)
@@ -113,7 +113,7 @@ struct MessageView: View {
                 }
             } else {
                 HStack (alignment: .top) {
-                    AIMessageView(message: message)
+                    AIMessageView(message: message, searchTerm: searchTerm, isCurrentSearchResult: isCurrentSearchResult)
                         //.border(Color.red, width: 1)
                         .overlay(
                             RoundedRectangle(cornerRadius: 11)

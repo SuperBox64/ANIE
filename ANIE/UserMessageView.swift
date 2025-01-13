@@ -6,24 +6,21 @@ struct UserMessageView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var copiedIndex: Int?
     @State private var isCopied = false
-    
-    private func highlightedText(_ text: String) -> some View {
-        Text(text)
-            .textSelection(.enabled)
-            .foregroundColor(.white)
-    }
+    let searchTerm: String
+    let isCurrentSearchResult: Bool
+
     
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
             let blocks = extractCodeBlocks(from: message.content)
-            highlightedText(message.content)
+
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
                     if block.isCode {
                         let isCode = true
                         
                         ZStack(alignment: .bottomTrailing) {
-                            Text(formatSwiftCode(block.content, colorScheme: colorScheme))
+                            Text(formatSwiftCode(block.content, colorScheme: colorScheme, searchTerm: searchTerm, isCurrentSearchResult: isCurrentSearchResult))
                                 .textSelection(.enabled)
                                 .padding(6)
                                 .padding(.trailing, 38)

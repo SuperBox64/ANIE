@@ -6,10 +6,14 @@ struct AIMessageView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var copiedIndex: Int?
     @State private var isCopied = false
+    let searchTerm: String
+    let isCurrentSearchResult: Bool
+ 
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             let blocks = extractCodeBlocks(from: message.content)
+          
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
                     if block.isCode  {
@@ -17,7 +21,7 @@ struct AIMessageView: View {
                         let isCode = true // swiftKeywords.contains { block.content.contains($0) }
                         
                         ZStack(alignment: .bottomTrailing) {
-                            Text(formatSwiftCode(block.content, colorScheme: colorScheme))
+                            Text(formatSwiftCode(block.content, colorScheme: colorScheme, searchTerm: searchTerm, isCurrentSearchResult: isCurrentSearchResult))
                                 .textSelection(.enabled)
                                 .padding(6)
                                 .padding(.trailing, 38)
