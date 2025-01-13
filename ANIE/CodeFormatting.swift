@@ -185,15 +185,32 @@ extension View {
             var allMatches: [(Range<String.Index>, String)] = []
             for term in searchTerms {
                 let termLowercased = term.lowercased()
-                // Use word boundary pattern to match whole words only
-                let pattern = "\\b" + NSRegularExpression.escapedPattern(for: termLowercased) + "\\b"
+                // Create pattern based on term length
+                let pattern: String
+                if term.count <= 2 {
+                    // For 1-2 letter terms, match exact characters with optional word boundaries
+                    pattern = "(?:^|\\s|\\W)" + NSRegularExpression.escapedPattern(for: termLowercased) + "(?:$|\\s|\\W)"
+                } else {
+                    // For longer terms, use word boundaries but handle special cases
+                    pattern = "(?:\\b|(?<=_))" + NSRegularExpression.escapedPattern(for: termLowercased) + "\\b"
+                }
+                
                 if let regex = try? NSRegularExpression(pattern: pattern) {
                     let matches = regex.matches(in: textLowercased, range: NSRange(location: 0, length: textLowercased.utf16.count))
                     
-                    // Convert each match to a String.Index range
+                    // Convert each match to a String.Index range and adjust for boundary characters
                     for match in matches {
                         if let range = Range(match.range, in: textLowercased) {
-                            allMatches.append((range, term))
+                            let start = range.lowerBound
+                            let end = range.upperBound
+                            
+                            // Adjust range to exclude boundary characters for short terms
+                            let finalStart = term.count <= 2 && textLowercased[start] != termLowercased.first! ?
+                                textLowercased.index(after: start) : start
+                            let finalEnd = term.count <= 2 && textLowercased[textLowercased.index(before: end)] != termLowercased.last! ?
+                                textLowercased.index(before: end) : end
+                            
+                            allMatches.append((finalStart..<finalEnd, term))
                         }
                     }
                 }
@@ -302,16 +319,32 @@ public func formatMarkdown(_ text: String, searchTerm: String = "", isCurrentSea
                 var allMatches: [(Range<String.Index>, String)] = []
                 for term in searchTerms {
                     let termLowercased = term.lowercased()
-                    // Use word boundary pattern to match whole words only
-                    let pattern = "\\b" + NSRegularExpression.escapedPattern(for: termLowercased) + "\\b"
-                    if let regex = try? NSRegularExpression(pattern: pattern),
-                       let lineRange = processed.range(of: line) {
+                    // Create pattern based on term length
+                    let pattern: String
+                    if term.count <= 2 {
+                        // For 1-2 letter terms, match exact characters with optional word boundaries
+                        pattern = "(?:^|\\s|\\W)" + NSRegularExpression.escapedPattern(for: termLowercased) + "(?:$|\\s|\\W)"
+                    } else {
+                        // For longer terms, use word boundaries but handle special cases
+                        pattern = "(?:\\b|(?<=_))" + NSRegularExpression.escapedPattern(for: termLowercased) + "\\b"
+                    }
+                    
+                    if let regex = try? NSRegularExpression(pattern: pattern) {
                         let matches = regex.matches(in: lineLowercased, range: NSRange(location: 0, length: lineLowercased.utf16.count))
                         
-                        // Convert each match to a String.Index range
+                        // Convert each match to a String.Index range and adjust for boundary characters
                         for match in matches {
                             if let range = Range(match.range, in: lineLowercased) {
-                                allMatches.append((range, term))
+                                let start = range.lowerBound
+                                let end = range.upperBound
+                                
+                                // Adjust range to exclude boundary characters for short terms
+                                let finalStart = term.count <= 2 && lineLowercased[start] != termLowercased.first! ?
+                                    lineLowercased.index(after: start) : start
+                                let finalEnd = term.count <= 2 && lineLowercased[lineLowercased.index(before: end)] != termLowercased.last! ?
+                                    lineLowercased.index(before: end) : end
+                                
+                                allMatches.append((finalStart..<finalEnd, term))
                             }
                         }
                     }
