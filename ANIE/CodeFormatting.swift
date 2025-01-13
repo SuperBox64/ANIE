@@ -16,13 +16,12 @@ extension View {
         let varBlue = Color(nsColor: NSColor(red: 0x60/255, green: 0xa5/255, blue: 0xff/255, alpha: 1.0))        // #60a5ff - variables/functions
         let typeOrange = Color(nsColor: NSColor(red: 0xfd/255, green: 0x97/255, blue: 0x09/255, alpha: 1.0))     // #fd9709 - Int/Double/Float
         let propGreen = Color(nsColor: NSColor(red: 0x30/255, green: 0xd0/255, blue: 0x40/255, alpha: 1.0))      // #30d040 - property access
-        let methodGreen = Color(nsColor: NSColor(red: 0x49/255, green: 0xc1/255, blue: 0x75/255, alpha: 1.0))    // #49c175 - method calls
         let typeCyan = Color(nsColor: NSColor(red: 0x27/255, green: 0xf8/255, blue: 0xff/255, alpha: 1.0))       // #27f8ff - Student type
         let funcMagenta = Color(nsColor: NSColor(red: 0xd8/255, green: 0x4d/255, blue: 0xbf/255, alpha: 1.0))    // #d84dbf - print/append/forEach
         let methodPurple = Color(nsColor: NSColor(red: 0xc0/255, green: 0x8a/255, blue: 0xff/255, alpha: 1.0))   // #c08aff - isEmpty/count
         let numberYellow = Color(nsColor: NSColor(red: 0xd0/255, green: 0xbc/255, blue: 0x56/255, alpha: 1.0))   // #d0bc56 - numbers
         let stringOrange = Color(nsColor: NSColor(red: 0xfd/255, green: 0x9f/255, blue: 0x39/255, alpha: 1.0))   // #fd9f39 - String type
-        let mintGreen = Color(nsColor: NSColor(red: 0x98/255, green: 0xff/255, blue: 0xb3/255, alpha: 1.0))      // #98ffb3 - method calls
+        let methodGreen = Color(nsColor: NSColor(red: 0x98/255, green: 0xff/255, blue: 0xb3/255, alpha: 1.0))      // #98ffb3 - method calls
         
         func applyColor(_ regex: NSRegularExpression, _ color: Color, bold: Bool = false) {
             let matches = regex.matches(in: code, range: range)
@@ -47,7 +46,7 @@ extension View {
 
         // Color function names and parameter labels mint green
         if let regex = try? NSRegularExpression(pattern: "[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()|[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)", options: []) {
-            applyColor(regex, mintGreen)
+            applyColor(regex, methodGreen)
         }
 
         // Color function arguments green
@@ -191,8 +190,10 @@ extension View {
                     // For 1-2 letter terms, match exact characters with optional word boundaries
                     pattern = "(?:^|\\s|\\W)" + NSRegularExpression.escapedPattern(for: termLowercased) + "(?:$|\\s|\\W)"
                 } else {
-                    // For longer terms, use word boundaries but handle special cases
-                    pattern = "(?:\\b|(?<=_))" + NSRegularExpression.escapedPattern(for: termLowercased) + "\\b"
+                    // For longer terms, use word boundaries and handle special cases
+                    pattern = "(?:\\b|(?<=_)|(?<=\\()|(?<=\"))\\s*" + 
+                        NSRegularExpression.escapedPattern(for: termLowercased) + 
+                        "\\s*(?:\\b|(?=_)|(?=\\))|(?=\"))"
                 }
                 
                 if let regex = try? NSRegularExpression(pattern: pattern) {
@@ -204,13 +205,11 @@ extension View {
                             let start = range.lowerBound
                             let end = range.upperBound
                             
-                            // Adjust range to exclude boundary characters for short terms
-                            let finalStart = term.count <= 2 && textLowercased[start] != termLowercased.first! ?
-                                textLowercased.index(after: start) : start
-                            let finalEnd = term.count <= 2 && textLowercased[textLowercased.index(before: end)] != termLowercased.last! ?
-                                textLowercased.index(before: end) : end
+                            // Trim any whitespace from the match range
+                            let trimStart = textLowercased[start...].firstIndex(where: { !$0.isWhitespace }) ?? start
+                            let trimEnd = textLowercased[..<end].lastIndex(where: { !$0.isWhitespace }).map { textLowercased.index(after: $0) } ?? end
                             
-                            allMatches.append((finalStart..<finalEnd, term))
+                            allMatches.append((trimStart..<trimEnd, term))
                         }
                     }
                 }
@@ -325,8 +324,10 @@ public func formatMarkdown(_ text: String, searchTerm: String = "", isCurrentSea
                         // For 1-2 letter terms, match exact characters with optional word boundaries
                         pattern = "(?:^|\\s|\\W)" + NSRegularExpression.escapedPattern(for: termLowercased) + "(?:$|\\s|\\W)"
                     } else {
-                        // For longer terms, use word boundaries but handle special cases
-                        pattern = "(?:\\b|(?<=_))" + NSRegularExpression.escapedPattern(for: termLowercased) + "\\b"
+                        // For longer terms, use word boundaries and handle special cases
+                        pattern = "(?:\\b|(?<=_)|(?<=\\()|(?<=\"))\\s*" + 
+                            NSRegularExpression.escapedPattern(for: termLowercased) + 
+                            "\\s*(?:\\b|(?=_)|(?=\\))|(?=\"))"
                     }
                     
                     if let regex = try? NSRegularExpression(pattern: pattern) {
@@ -338,13 +339,11 @@ public func formatMarkdown(_ text: String, searchTerm: String = "", isCurrentSea
                                 let start = range.lowerBound
                                 let end = range.upperBound
                                 
-                                // Adjust range to exclude boundary characters for short terms
-                                let finalStart = term.count <= 2 && lineLowercased[start] != termLowercased.first! ?
-                                    lineLowercased.index(after: start) : start
-                                let finalEnd = term.count <= 2 && lineLowercased[lineLowercased.index(before: end)] != termLowercased.last! ?
-                                    lineLowercased.index(before: end) : end
+                                // Trim any whitespace from the match range
+                                let trimStart = lineLowercased[start...].firstIndex(where: { !$0.isWhitespace }) ?? start
+                                let trimEnd = lineLowercased[..<end].lastIndex(where: { !$0.isWhitespace }).map { lineLowercased.index(after: $0) } ?? end
                                 
-                                allMatches.append((finalStart..<finalEnd, term))
+                                allMatches.append((trimStart..<trimEnd, term))
                             }
                         }
                     }

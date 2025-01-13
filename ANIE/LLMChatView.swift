@@ -119,10 +119,11 @@ struct LLMChatView: View {
                     .padding(6)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(.textBackgroundColor))
+                            .fill(Color.black)
                             .shadow(color: Color(.separatorColor).opacity(0.5), radius: 2)
                     )
                     .frame(maxWidth: .infinity)
+                    .padding(.bottom, 20)
                     
                     Button {
                         showingConfiguration = true
