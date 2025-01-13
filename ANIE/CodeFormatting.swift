@@ -184,32 +184,16 @@ extension View {
             var allMatches: [(Range<String.Index>, String)] = []
             for term in searchTerms {
                 let termLowercased = term.lowercased()
-                // Create pattern based on term length
-                let pattern: String
-                if term.count <= 2 {
-                    // For 1-2 letter terms, match exact characters with optional word boundaries
-                    pattern = "(?:^|\\s|\\W)" + NSRegularExpression.escapedPattern(for: termLowercased) + "(?:$|\\s|\\W)"
-                } else {
-                    // For longer terms, use word boundaries and handle special cases
-                    pattern = "(?:\\b|(?<=_)|(?<=\\()|(?<=\"))\\s*" + 
-                        NSRegularExpression.escapedPattern(for: termLowercased) + 
-                        "\\s*(?:\\b|(?=_)|(?=\\))|(?=\"))"
-                }
+                // Create pattern that matches the term anywhere, including within words
+                let pattern = NSRegularExpression.escapedPattern(for: termLowercased)
                 
                 if let regex = try? NSRegularExpression(pattern: pattern) {
                     let matches = regex.matches(in: textLowercased, range: NSRange(location: 0, length: textLowercased.utf16.count))
                     
-                    // Convert each match to a String.Index range and adjust for boundary characters
+                    // Convert each match to a String.Index range
                     for match in matches {
                         if let range = Range(match.range, in: textLowercased) {
-                            let start = range.lowerBound
-                            let end = range.upperBound
-                            
-                            // Trim any whitespace from the match range
-                            let trimStart = textLowercased[start...].firstIndex(where: { !$0.isWhitespace }) ?? start
-                            let trimEnd = textLowercased[..<end].lastIndex(where: { !$0.isWhitespace }).map { textLowercased.index(after: $0) } ?? end
-                            
-                            allMatches.append((trimStart..<trimEnd, term))
+                            allMatches.append((range, term))
                         }
                     }
                 }
@@ -318,32 +302,16 @@ public func formatMarkdown(_ text: String, searchTerm: String = "", isCurrentSea
                 var allMatches: [(Range<String.Index>, String)] = []
                 for term in searchTerms {
                     let termLowercased = term.lowercased()
-                    // Create pattern based on term length
-                    let pattern: String
-                    if term.count <= 2 {
-                        // For 1-2 letter terms, match exact characters with optional word boundaries
-                        pattern = "(?:^|\\s|\\W)" + NSRegularExpression.escapedPattern(for: termLowercased) + "(?:$|\\s|\\W)"
-                    } else {
-                        // For longer terms, use word boundaries and handle special cases
-                        pattern = "(?:\\b|(?<=_)|(?<=\\()|(?<=\"))\\s*" + 
-                            NSRegularExpression.escapedPattern(for: termLowercased) + 
-                            "\\s*(?:\\b|(?=_)|(?=\\))|(?=\"))"
-                    }
+                    // Create pattern that matches the term anywhere, including within words
+                    let pattern = NSRegularExpression.escapedPattern(for: termLowercased)
                     
                     if let regex = try? NSRegularExpression(pattern: pattern) {
                         let matches = regex.matches(in: lineLowercased, range: NSRange(location: 0, length: lineLowercased.utf16.count))
                         
-                        // Convert each match to a String.Index range and adjust for boundary characters
+                        // Convert each match to a String.Index range
                         for match in matches {
                             if let range = Range(match.range, in: lineLowercased) {
-                                let start = range.lowerBound
-                                let end = range.upperBound
-                                
-                                // Trim any whitespace from the match range
-                                let trimStart = lineLowercased[start...].firstIndex(where: { !$0.isWhitespace }) ?? start
-                                let trimEnd = lineLowercased[..<end].lastIndex(where: { !$0.isWhitespace }).map { lineLowercased.index(after: $0) } ?? end
-                                
-                                allMatches.append((trimStart..<trimEnd, term))
+                                allMatches.append((range, term))
                             }
                         }
                     }
