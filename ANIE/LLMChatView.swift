@@ -55,7 +55,9 @@ struct LLMChatView: View {
                             if let messages = viewModel.filteredMessages, !messages.isEmpty {
                                 if currentSearchIndex > 0 {
                                     currentSearchIndex -= 1
-                                    scrollProxy?.scrollTo(messages[currentSearchIndex].id, anchor: .center)
+                                    withAnimation {
+                                        scrollProxy?.scrollTo(messages[currentSearchIndex].id, anchor: .top)
+                                    }
                                 }
                             }
                         }) {
@@ -73,7 +75,9 @@ struct LLMChatView: View {
                             if let messages = viewModel.filteredMessages, !messages.isEmpty {
                                 if currentSearchIndex < messages.count - 1 {
                                     currentSearchIndex += 1
-                                    scrollProxy?.scrollTo(messages[currentSearchIndex].id, anchor: .center)
+                                    withAnimation {
+                                        scrollProxy?.scrollTo(messages[currentSearchIndex].id, anchor: .top)
+                                    }
                                 }
                             }
                         }) {
@@ -106,7 +110,7 @@ struct LLMChatView: View {
                                     // Give SwiftUI time to update the view
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                         withAnimation {
-                                            scrollProxy?.scrollTo(messages[0].id, anchor: .center)
+                                            scrollProxy?.scrollTo(messages[0].id, anchor: .top)
                                         }
                                     }
                                 }

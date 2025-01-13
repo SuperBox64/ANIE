@@ -133,6 +133,7 @@ struct MessageView: View {
             }
         }
         .padding(.horizontal, 7)
+        .padding(.top, 16)
         .transaction { transaction in
             transaction.animation = nil
         }
