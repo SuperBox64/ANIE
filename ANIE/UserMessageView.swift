@@ -40,13 +40,9 @@ struct UserMessageView: View {
                         .cornerRadius(8)
                         .padding(6)
                     } else {
-                        Text(try! AttributedString(markdown: block.content, options: .init(
-                            allowsExtendedAttributes: true,
-                            interpretedSyntax: .inlineOnlyPreservingWhitespace,
-                            failurePolicy: .returnPartiallyParsedIfPossible
-                        )))
-                        .textSelection(.enabled)
-                        .foregroundColor(.white)
+                        Text(formatMarkdown(block.content, colorScheme: colorScheme, searchTerm: searchTerm, isCurrentSearchResult: isCurrentSearchResult))
+                            .textSelection(.enabled)
+                            .foregroundColor(.white)
                     }
                 }
                 .transaction { transaction in

@@ -192,83 +192,6 @@ extension View {
     }
 }
 
-@MainActor
-public func formatMarkdown(_ text: String) -> AttributedString {
-    // Check if this is an error message
-    if text.hasPrefix("Error:") || text.contains("API Error:") {
-        var errorAttr = AttributedString(text)
-        errorAttr.foregroundColor = .white
-        return errorAttr
-    }
-    
-    if var processed = try? AttributedString(markdown: text, options: .init(
-        allowsExtendedAttributes: true,
-        interpretedSyntax: .inlineOnly,
-        failurePolicy: .returnPartiallyParsedIfPossible
-    )) {
-        // Process markdown elements
-        let headerMarkers = ["#### ", "### ", "## ", "# "]
-        for marker in headerMarkers {
-            while let range = processed.range(of: marker) {
-                processed.replaceSubrange(range, with: AttributedString(""))
-            }
-        }
-        
-        // Replace list markers with bullets
-        let bulletFont = NSFont.systemFont(ofSize: NSFont.systemFontSize + 2)
-        while let range = processed.range(of: "- ") {
-            var bulletAttr = AttributedString("• ")
-            bulletAttr.font = bulletFont
-            processed.replaceSubrange(range, with: bulletAttr)
-        }
-        
-        // Process lines with colons (non-numbered)
-        let lines = text.components(separatedBy: .newlines)
-        let headerFont = NSFont.systemFont(ofSize: NSFont.systemFontSize + 2)
-        
-        // First, handle non-numbered items with colons
-        let colonPattern = #"^(?!\s*\d+\.)(.+?):\s*$"#  // Matches lines ending with colon, but not numbered lists
-        let colonRegex = try? NSRegularExpression(pattern: colonPattern, options: [.anchorsMatchLines])
-        
-        for line in lines {
-            if let match = colonRegex?.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count)),
-               let contentRange = Range(match.range(at: 1), in: line) {
-                let content = String(line[contentRange])
-                if let range = processed.range(of: content + ":") {
-                    var headerAttr = AttributedString(content)
-                    headerAttr.inlinePresentationIntent = .stronglyEmphasized
-                    headerAttr.font = headerFont
-                    processed.replaceSubrange(range, with: headerAttr)
-                }
-            }
-        }
-        
-        // Then handle numbered lists
-        let numberedPattern = #"^\s*\d+\.\s+(.+?)(?::|(?:\s*$))"#  // Match content up to colon or end of line
-        let numberedRegex = try? NSRegularExpression(pattern: numberedPattern, options: [.anchorsMatchLines])
-        
-        for line in lines {
-            if let match = numberedRegex?.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count)),
-               let contentRange = Range(match.range(at: 1), in: line) {
-                let content = String(line[contentRange])
-                if let range = processed.range(of: content + ":") {
-                    // If we found it with the colon, replace it
-                    var boldAttr = AttributedString(content)
-                    boldAttr.inlinePresentationIntent = .stronglyEmphasized
-                    processed.replaceSubrange(range, with: boldAttr)
-                } else if let range = processed.range(of: content) {
-                    // If we found it without the colon, just make it bold
-                    processed[range].inlinePresentationIntent = .stronglyEmphasized
-                }
-            }
-        }
-        
-        return processed
-    }
-    
-    return AttributedString(text)
-}
-
 public func extractCodeBlocks(from text: String) -> [(content: String, isCode: Bool)] {
     var blocks: [(String, Bool)] = []
     var currentText = ""
@@ -344,4 +267,209 @@ public func extractCodeBlocks(from text: String) -> [(content: String, isCode: B
     }
     
     return blocks
+} 
+
+public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, searchTerm: String = "", isCurrentSearchResult: Bool = false) -> AttributedString {
+    // First, split the text into lines while preserving empty lines
+    let lines = text.components(separatedBy: CharacterSet.newlines)
+    var processedLines: [String] = []
+    
+    // Process each line individually to preserve whitespace
+    for line in lines {
+        var processedLine = line
+        
+        // Headers - remove ### completely, starting with longest match
+        let headerPrefixes = ["#### ", "### ", "## ", "# "]
+        for prefix in headerPrefixes {
+            if processedLine.hasPrefix(prefix) {
+                processedLine = String(processedLine.dropFirst(prefix.count))
+                break
+            }
+        }
+        
+       
+        
+        // Bold and Italic - remove *** or ___ while preserving inner whitespace
+        while let range = processedLine.range(of: "(\\*\\*\\*|___)(.+?)\\1", options: .regularExpression) {
+            let matched = processedLine[range]
+            let content = String(matched.dropFirst(3).dropLast(3))
+            processedLine.replaceSubrange(range, with: content)
+        }
+        
+        // Bold - remove ** or __ while preserving inner whitespace
+        while let range = processedLine.range(of: "(\\*\\*|__)(.+?)\\1", options: .regularExpression) {
+            let matched = processedLine[range]
+            let content = String(matched.dropFirst(2).dropLast(2))
+            processedLine.replaceSubrange(range, with: content)
+        }
+        
+        // Italic - remove * or _ while preserving inner whitespace
+        while let range = processedLine.range(of: "(?<!\\*|_)(\\*|_)(?!\\*|_)(.+?)\\1(?!\\*|_)", options: .regularExpression) {
+            let matched = processedLine[range]
+            let content = String(matched.dropFirst(1).dropLast(1))
+            processedLine.replaceSubrange(range, with: content)
+        }
+        
+        // Links - extract link text and URL
+        while let range = processedLine.range(of: "\\[([^\\]]+)\\]\\(([^\\)]+)\\)", options: .regularExpression) {
+            let matched = processedLine[range]
+            let content = String(matched)
+            let linkPattern = "\\[([^\\]]+)\\]\\(([^\\)]+)\\)"
+            if let regex = try? NSRegularExpression(pattern: linkPattern),
+               let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)) {
+                if let textRange = Range(match.range(at: 1), in: content) {
+                    let linkText = String(content[textRange])
+                    processedLine.replaceSubrange(range, with: linkText)
+                }
+            }
+        }
+        
+        // Remove ! marker at the beginning of the line
+        if processedLine.hasPrefix("!") {
+            processedLine.removeFirst()
+        }
+    
+        // Lists - replace dash with bullet while preserving indentation
+        if let range = processedLine.range(of: "^(\\s*)[•-]\\s", options: .regularExpression) {
+            let indentation = processedLine[..<range.upperBound].prefix(while: { $0.isWhitespace })
+            let content = String(processedLine[range.upperBound...])
+            processedLine = indentation + "• " + content
+        }
+        
+//           // Remove backticks while preserving the text inside
+//        while let range = processedLine.range(of: "`([^`]+)`", options: .regularExpression) {
+//            let matched = processedLine[range]
+//            let content = String(matched.dropFirst().dropLast())
+//            processedLine.replaceSubrange(range, with: content)
+//        }
+        
+
+        processedLines.append(processedLine)
+    }
+    
+    // Rejoin lines preserving all line endings
+    let result = processedLines.joined(separator: "\n")
+    
+    // Create attributed string
+    var attributedResult = AttributedString(result)
+    
+    // Apply styles based on original markdown
+    // Headers
+    if let regex = try? NSRegularExpression(pattern: "^(?:#{1,6}\\s+)(.+?)\\s*$", options: [.anchorsMatchLines]) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let headerRange = Range(match.range(at: 1), in: text),
+               let contentRange = result.range(of: String(text[headerRange])),
+               let attributedRange = Range(contentRange, in: attributedResult) {
+                attributedResult[attributedRange].inlinePresentationIntent = .stronglyEmphasized
+            }
+        }
+    }
+    
+    // Links
+    if let regex = try? NSRegularExpression(pattern: "\\[([^\\]]+)\\]\\(([^\\)]+)\\)", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let textRange = Range(match.range(at: 1), in: text),
+               let urlRange = Range(match.range(at: 2), in: text),
+               let contentRange = result.range(of: String(text[textRange])),
+               let attributedRange = Range(contentRange, in: attributedResult) {
+                let url = String(text[urlRange])
+                attributedResult[attributedRange].link = URL(string: url)
+                attributedResult[attributedRange].foregroundColor = .blue
+                attributedResult[attributedRange].underlineStyle = .single
+            }
+        }
+    }
+    
+    // Code blocks - only process text wrapped in backticks
+    if let regex = try? NSRegularExpression(pattern: "`[^`]+`", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let fullRange = Range(match.range, in: text) {
+                let fullText = String(text[fullRange])
+                let codeText = String(fullText.dropFirst().dropLast())  // Remove backticks
+                // Search for this text in our attributed string
+                if let range = attributedResult.range(of: codeText) {
+                    var codeAttr = AttributedString(codeText)
+                    codeAttr.inlinePresentationIntent = .code
+                    codeAttr.backgroundColor = Color.black.opacity(0.225)
+                    attributedResult.replaceSubrange(range, with: codeAttr)
+                }
+            }
+        }
+    }
+    
+    // Bold and Italic text
+    if let regex = try? NSRegularExpression(pattern: "(\\*\\*\\*|___)(.+?)\\1", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let boldItalicRange = Range(match.range(at: 2), in: text),
+               let contentRange = result.range(of: String(text[boldItalicRange])),
+               let attributedRange = Range(contentRange, in: attributedResult) {
+                attributedResult[attributedRange].inlinePresentationIntent = [.stronglyEmphasized, .emphasized]
+            }
+        }
+    }
+    
+    // Bold text
+    if let regex = try? NSRegularExpression(pattern: "(\\*\\*|__)(.+?)\\1", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let boldRange = Range(match.range(at: 2), in: text),
+               let contentRange = result.range(of: String(text[boldRange])),
+               let attributedRange = Range(contentRange, in: attributedResult) {
+                attributedResult[attributedRange].inlinePresentationIntent = .stronglyEmphasized
+            }
+        }
+    }
+    
+    // Italic text
+    if let regex = try? NSRegularExpression(pattern: "(?<!\\*|_)(\\*|_)(?!\\*|_)(.+?)\\1(?!\\*|_)", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let italicRange = Range(match.range(at: 2), in: text),
+               let contentRange = result.range(of: String(text[italicRange])),
+               let attributedRange = Range(contentRange, in: attributedResult) {
+                attributedResult[attributedRange].inlinePresentationIntent = .emphasized
+            }
+        }
+    }
+    
+    // Add search term highlighting at the end
+    if !searchTerm.isEmpty {
+        let searchTerms = searchTerm.split(separator: " ")
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        let textLowercased = result.lowercased()
+        
+        var allMatches: [(Range<String.Index>, String)] = []
+        for term in searchTerms {
+            let termLowercased = term.lowercased()
+            let pattern = NSRegularExpression.escapedPattern(for: termLowercased)
+            
+            if let regex = try? NSRegularExpression(pattern: pattern) {
+                let matches = regex.matches(in: textLowercased, range: NSRange(location: 0, length: textLowercased.utf16.count))
+                for match in matches {
+                    if let range = Range(match.range, in: textLowercased) {
+                        allMatches.append((range, term))
+                    }
+                }
+            }
+        }
+        
+        allMatches.sort { $0.0.lowerBound > $1.0.lowerBound }
+        
+        for (range, _) in allMatches {
+            if let attributedRange = Range(range, in: attributedResult) {
+                var highlightedText = attributedResult[attributedRange]
+                highlightedText.backgroundColor = Color.yellow
+                highlightedText.foregroundColor = Color.black
+                highlightedText.inlinePresentationIntent = .stronglyEmphasized
+                attributedResult.replaceSubrange(attributedRange, with: highlightedText)
+            }
+        }
+    }
+    
+    return attributedResult
 } 
