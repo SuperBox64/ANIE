@@ -218,136 +218,6 @@ extension View {
     }
 }
 
-@MainActor
-public func formatMarkdown(_ text: String, searchTerm: String = "", isCurrentSearchResult: Bool = false) -> AttributedString {
-    // Check if this is an error message
-    if text.hasPrefix("Error:") || text.contains("API Error:") {
-        var errorAttr = AttributedString(text)
-        errorAttr.foregroundColor = .white
-        return errorAttr
-    }
-    
-    if var processed = try? AttributedString(markdown: text, options: .init(
-        allowsExtendedAttributes: true,
-        interpretedSyntax: .inlineOnly,
-        failurePolicy: .returnPartiallyParsedIfPossible
-    )) {
-        // Process markdown elements
-        let headerMarkers = ["#### ", "### ", "## ", "# "]
-        for marker in headerMarkers {
-            while let range = processed.range(of: marker) {
-                processed.replaceSubrange(range, with: AttributedString(""))
-            }
-        }
-        
-        // Replace list markers with bullets
-        let bulletFont = NSFont.systemFont(ofSize: NSFont.systemFontSize + 2)
-        while let range = processed.range(of: "- ") {
-            var bulletAttr = AttributedString("• ")
-            bulletAttr.font = bulletFont
-            processed.replaceSubrange(range, with: bulletAttr)
-        }
-        
-        // Process lines with colons (non-numbered)
-        let lines = text.components(separatedBy: .newlines)
-        let headerFont = NSFont.systemFont(ofSize: NSFont.systemFontSize + 2)
-        
-        // First, handle non-numbered items with colons
-        let colonPattern = #"^(?!\s*\d+\.)(.+?):\s*$"#  // Matches lines ending with colon, but not numbered lists
-        let colonRegex = try? NSRegularExpression(pattern: colonPattern, options: [.anchorsMatchLines])
-        
-        for line in lines {
-            if let match = colonRegex?.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count)),
-               let contentRange = Range(match.range(at: 1), in: line) {
-                let content = String(line[contentRange])
-                if let range = processed.range(of: content + ":") {
-                    var headerAttr = AttributedString(content)
-                    headerAttr.inlinePresentationIntent = .stronglyEmphasized
-                    headerAttr.font = headerFont
-                    processed.replaceSubrange(range, with: headerAttr)
-                }
-            }
-        }
-        
-        // Then handle numbered lists
-        let numberedPattern = #"^\s*\d+\.\s+(.+?)(?::|(?:\s*$))"#  // Match content up to colon or end of line
-        let numberedRegex = try? NSRegularExpression(pattern: numberedPattern, options: [.anchorsMatchLines])
-        
-        for line in lines {
-            if let match = numberedRegex?.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count)),
-               let contentRange = Range(match.range(at: 1), in: line) {
-                let content = String(line[contentRange])
-                if let range = processed.range(of: content + ":") {
-                    // If we found it with the colon, replace it
-                    var boldAttr = AttributedString(content)
-                    boldAttr.inlinePresentationIntent = .stronglyEmphasized
-                    processed.replaceSubrange(range, with: boldAttr)
-                } else if let range = processed.range(of: content) {
-                    // If we found it without the colon, just make it bold
-                    processed[range].inlinePresentationIntent = .stronglyEmphasized
-                }
-            }
-        }
-        
-        // Add search term highlighting at the end
-        for line in lines {
-            if !searchTerm.isEmpty {
-                // Split search term into individual words and filter out empty terms
-                let searchTerms = searchTerm.split(separator: " ")
-                    .map(String.init)
-                    .filter { !$0.isEmpty }
-                let lineLowercased = line.lowercased()
-                
-                // Find all matches for all terms
-                var allMatches: [(Range<String.Index>, String)] = []
-                for term in searchTerms {
-                    let termLowercased = term.lowercased()
-                    // Create pattern that matches the term anywhere, including within words
-                    let pattern = NSRegularExpression.escapedPattern(for: termLowercased)
-                    
-                    if let regex = try? NSRegularExpression(pattern: pattern) {
-                        let matches = regex.matches(in: lineLowercased, range: NSRange(location: 0, length: lineLowercased.utf16.count))
-                        
-                        // Convert each match to a String.Index range
-                        for match in matches {
-                            if let range = Range(match.range, in: lineLowercased) {
-                                allMatches.append((range, term))
-                            }
-                        }
-                    }
-                }
-                
-                // Sort matches by location (in reverse order to not invalidate ranges)
-                allMatches.sort { $0.0.lowerBound > $1.0.lowerBound }
-                
-                // Apply highlighting to each match
-                if let lineRange = processed.range(of: line) {
-                    for (range, _) in allMatches {
-                        let startOffset = lineLowercased.distance(from: lineLowercased.startIndex, to: range.lowerBound)
-                        let endOffset = lineLowercased.distance(from: lineLowercased.startIndex, to: range.upperBound)
-                        
-                        let originalStart = line.index(line.startIndex, offsetBy: startOffset)
-                        let originalEnd = line.index(line.startIndex, offsetBy: endOffset)
-                        let originalRange = originalStart..<originalEnd
-                        
-                        // Convert the range to the AttributedString
-                        if let attributedRange = Range(originalRange, in: processed) {
-                            var highlightedText = processed[attributedRange]
-                            highlightedText.backgroundColor = Color.yellow
-                            highlightedText.foregroundColor = Color.black
-                            highlightedText.inlinePresentationIntent = .stronglyEmphasized
-                            processed.replaceSubrange(attributedRange, with: highlightedText)
-                        }
-                    }
-                }
-            }
-        }
-        
-        return processed
-    }
-    
-    return AttributedString(text)
-}
 
 public func extractCodeBlocks(from text: String) -> [(content: String, isCode: Bool)] {
     var blocks: [(String, Bool)] = []
@@ -425,3 +295,79 @@ public func extractCodeBlocks(from text: String) -> [(content: String, isCode: B
     
     return blocks
 } 
+
+
+public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, searchTerm: String = "", isCurrentSearchResult: Bool = false) -> AttributedString {
+    // 1. Create initial AttributedString
+    var attributedResult = AttributedString(text)
+    
+    // 2. Apply markdown formatting to AttributedString
+    
+    // Headers
+    if let regex = try? NSRegularExpression(pattern: "^(#{1,6})\\s+(.+?)\\s*$", options: [.anchorsMatchLines]) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let headerRange = Range(match.range(at: 2), in: text),
+               let attributedRange = Range(headerRange, in: attributedResult) {
+                attributedResult[attributedRange].inlinePresentationIntent = .stronglyEmphasized
+            }
+            if let fullRange = Range(match.range(at: 1), in: attributedResult) {
+                attributedResult.replaceSubrange(fullRange, with: AttributedString(""))
+            }
+        }
+    }
+    
+    // Links
+    if let regex = try? NSRegularExpression(pattern: "\\[([^\\]]+)\\]\\(([^\\)]+)\\)", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let textRange = Range(match.range(at: 1), in: text),
+               let urlRange = Range(match.range(at: 2), in: text),
+               let attributedRange = Range(textRange, in: attributedResult) {
+                let url = String(text[urlRange])
+                attributedResult[attributedRange].link = URL(string: url)
+                attributedResult[attributedRange].foregroundColor = .blue
+                attributedResult[attributedRange].underlineStyle = .single
+            }
+        }
+    }
+    
+    // Bold and Italic
+    if let regex = try? NSRegularExpression(pattern: "(\\*\\*\\*|___)(.+?)\\1", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let boldItalicRange = Range(match.range(at: 2), in: text),
+               let attributedRange = Range(boldItalicRange, in: attributedResult) {
+                attributedResult[attributedRange].inlinePresentationIntent = [.stronglyEmphasized, .emphasized]
+            }
+        }
+    }
+    
+    // Bold
+    if let regex = try? NSRegularExpression(pattern: "(\\*\\*|__)(.+?)\\1", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let boldRange = Range(match.range(at: 2), in: text),
+               let attributedRange = Range(boldRange, in: attributedResult) {
+                attributedResult[attributedRange].inlinePresentationIntent = .stronglyEmphasized
+            }
+        }
+    }
+   
+    
+    // Italic
+    if let regex = try? NSRegularExpression(pattern: "(?<!\\*|_)(\\*|_)(?!\\*|_)(.+?)\\1(?!\\*|_)", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let italicRange = Range(match.range(at: 2), in: text),
+               let attributedRange = Range(italicRange, in: attributedResult) {
+                attributedResult[attributedRange].inlinePresentationIntent = .emphasized
+            }
+        }
+    }
+    
+    
+   
+
+    return attributedResult
+}

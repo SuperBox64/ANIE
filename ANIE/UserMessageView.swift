@@ -16,7 +16,7 @@ struct UserMessageView: View {
 
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
-                    if block.isCode || 1 == 1 {
+                    if block.isCode {
                         let isCode = true
                         
                         ZStack(alignment: .bottomTrailing) {
