@@ -172,48 +172,10 @@ extension View {
      
     
   if !searchTerm.isEmpty {
-            // Split search term into individual words and filter out empty terms
-            let searchTerms = searchTerm.split(separator: " ")
-                .map(String.init)
-                .filter { !$0.isEmpty }
-            let textLowercased = code.lowercased()
-            
-        // Add search term highlighting at the end
-      
-            // Find all matches for all terms
-            var allMatches: [(Range<String.Index>, String)] = []
-            for term in searchTerms {
-                let termLowercased = term.lowercased()
-                // Create pattern that matches the term anywhere, including within words
-                let pattern = NSRegularExpression.escapedPattern(for: termLowercased)
-                
-                if let regex = try? NSRegularExpression(pattern: pattern) {
-                    let matches = regex.matches(in: textLowercased, range: NSRange(location: 0, length: textLowercased.utf16.count))
-                    
-                    // Convert each match to a String.Index range
-                    for match in matches {
-                        if let range = Range(match.range, in: textLowercased) {
-                            allMatches.append((range, term))
-                        }
-                    }
-                }
-            }
-            
-            // Sort matches by location (in reverse order to not invalidate ranges)
-            allMatches.sort { $0.0.lowerBound > $1.0.lowerBound }
-            
-            // Apply highlighting to each match
-            for (range, _) in allMatches {
-                if let attributedRange = Range(range, in: result) {
-                    var highlightedText = result[attributedRange]
-                    highlightedText.backgroundColor = Color.yellow
-                    highlightedText.foregroundColor = Color.black
-                    highlightedText.inlinePresentationIntent = .stronglyEmphasized
-                    result.replaceSubrange(attributedRange, with: highlightedText)
-                }
-            }
+            // Add search term highlighting at the end
+            applySearchHighlighting(to: &result, searchTerm: searchTerm, originalText: code, isCurrentSearchResult: isCurrentSearchResult)
         }
-
+        
         return result
     }
 }
@@ -399,50 +361,76 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
         }
     }
 
-      
-  if !searchTerm.isEmpty {
-            // Split search term into individual words and filter out empty terms
-            let searchTerms = searchTerm.split(separator: " ")
-                .map(String.init)
-                .filter { !$0.isEmpty }
-            let textLowercased = text.lowercased()
-            
-        // Add search term highlighting at the end
-      
-            // Find all matches for all terms
-            var allMatches: [(Range<String.Index>, String)] = []
-            for term in searchTerms {
-                let termLowercased = term.lowercased()
-                // Create pattern that matches the term anywhere, including within words
-                let pattern = NSRegularExpression.escapedPattern(for: termLowercased)
+  
+    // Add search term highlighting at the end
+    applySearchHighlighting(to: &attributedResult, searchTerm: searchTerm, originalText: text, isCurrentSearchResult: isCurrentSearchResult)
+    
+    return attributedResult
+}
+
+private func applySearchHighlighting(to attributedString: inout AttributedString, searchTerm: String, originalText: String, isCurrentSearchResult: Bool = false) {
+    if !searchTerm.isEmpty {
+        // Split search term into individual words and filter out empty terms
+        let searchTerms = searchTerm.split(separator: " ")
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        
+        // Find all matches for all terms
+        var allMatches: [(Range<String.Index>, String)] = []
+        for term in searchTerms {
+            // Create pattern that matches whole words
+            let pattern = "\\b" + NSRegularExpression.escapedPattern(for: term) + "\\b"
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+                let matches = regex.matches(in: originalText, range: NSRange(location: 0, length: originalText.utf16.count))
                 
-                if let regex = try? NSRegularExpression(pattern: pattern) {
-                    let matches = regex.matches(in: textLowercased, range: NSRange(location: 0, length: textLowercased.utf16.count))
-                    
-                    // Convert each match to a String.Index range
-                    for match in matches {
-                        if let range = Range(match.range, in: textLowercased) {
-                            allMatches.append((range, term))
-                        }
+                // Convert each match to a String.Index range
+                for match in matches {
+                    if let range = Range(match.range, in: originalText) {
+                        allMatches.append((range, term))
                     }
                 }
             }
             
-            // Sort matches by location (in reverse order to not invalidate ranges)
-            allMatches.sort { $0.0.lowerBound > $1.0.lowerBound }
-            
-            // Apply highlighting to each match
-            for (range, _) in allMatches {
-                if let attributedRange = Range(range, in: attributedResult) {
-                    var highlightedText = attributedResult[attributedRange]
-                    highlightedText.backgroundColor = Color.yellow
-                    highlightedText.foregroundColor = Color.black
-                    highlightedText.inlinePresentationIntent = .stronglyEmphasized
-                    attributedResult.replaceSubrange(attributedRange, with: highlightedText)
+            // Also try exact match without word boundaries
+            let exactPattern = NSRegularExpression.escapedPattern(for: term)
+            if let regex = try? NSRegularExpression(pattern: exactPattern, options: [.caseInsensitive]) {
+                let matches = regex.matches(in: originalText, range: NSRange(location: 0, length: originalText.utf16.count))
+                
+                // Convert each match to a String.Index range
+                for match in matches {
+                    if let range = Range(match.range, in: originalText) {
+                        allMatches.append((range, term))
+                    }
+                }
+            }
+        }
+        
+        // Remove overlapping matches
+        allMatches = allMatches.sorted { $0.0.lowerBound > $1.0.lowerBound }
+        var filteredMatches: [(Range<String.Index>, String)] = []
+        var lastEnd: String.Index?
+        
+        for match in allMatches {
+            if let last = lastEnd, match.0.upperBound > last {
+                continue
+            }
+            filteredMatches.append(match)
+            lastEnd = match.0.lowerBound
+        }
+        
+        // Apply highlighting to each match
+        for (range, _) in filteredMatches {
+            if let attributedRange = Range(range, in: attributedString) {
+                var highlightedText = attributedString[attributedRange]
+                if isCurrentSearchResult {
+                    highlightedText.backgroundColor = Color(nsColor: NSColor(red: 1.0, green: 0.0, blue: 0.0, alpha: 0.3))
+                } else {
+                    highlightedText.backgroundColor = Color(nsColor: NSColor(red: 1.0, green: 1.0, blue: 0.0, alpha: 0.3))
+                }
+                highlightedText.foregroundColor = .black
+                attributedString.replaceSubrange(attributedRange, with: highlightedText)
             }
         }
     }
-
-
-    return attributedResult
 }
+

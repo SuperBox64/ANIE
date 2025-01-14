@@ -41,7 +41,7 @@ struct AIMessageView: View {
                         .cornerRadius(8)
                         .padding(6)
                     } else {
-                        Text(formatMarkdown(block.content))
+                        Text(formatMarkdown(block.content, colorScheme: colorScheme, searchTerm: searchTerm, isCurrentSearchResult: isCurrentSearchResult))
                             .textSelection(.enabled)
                             .foregroundColor(Color(nsColor: NSColor.labelColor))
                     }
