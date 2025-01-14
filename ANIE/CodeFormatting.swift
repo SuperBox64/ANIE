@@ -360,13 +360,13 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
         }
     }
 
-    // let replaceMarkers = ["- "]
+    // let replaceMarkers = ["-"]
     // for marker in replaceMarkers {
     //     while let range = attributedResult.range(of: marker) {
-    //         var bulletPoint = AttributedString("• ")
-    //         bulletPoint.inlinePresentationIntent = .stronglyEmphasized
-    //         bulletPoint.font = .boldSystemFont(ofSize: NSFont.systemFontSize + 2.5)
-    //         attributedResult.replaceSubrange(range, with: bulletPoint)
+    //         var bulletPoint = AttributedString("•")
+    //        // bulletPoint.inlinePresentationIntent = .stronglyEmphasized
+    //         //bulletPoint.font = .boldSystemFont(ofSize: NSFont.systemFontSize + 2.5)
+    //         //attributedResult.replaceSubrange(range, with: bulletPoint)
     //     }
     // }
 
@@ -405,11 +405,9 @@ private func applySearchHighlighting(to attributedString: inout AttributedString
         for (range, _) in allMatches {
             if let attributedRange = Range(range, in: attributedString) {
                 var highlightedText = attributedString[attributedRange]
-                if isCurrentSearchResult {
-                    highlightedText.backgroundColor = Color(nsColor: NSColor(red: 1.0, green: 0.0, blue: 0.0, alpha: 0.3))
-                } else {
-                    highlightedText.backgroundColor = Color(nsColor: NSColor(red: 1.0, green: 1.0, blue: 0.0, alpha: 0.3))
-                }
+                highlightedText.backgroundColor = Color.yellow
+                highlightedText.foregroundColor = .black
+                highlightedText.inlinePresentationIntent = .stronglyEmphasized
                 attributedString.replaceSubrange(attributedRange, with: highlightedText)
             }
         }
