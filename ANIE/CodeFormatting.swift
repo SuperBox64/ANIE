@@ -366,8 +366,15 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
         }
     }
     
-    
-   
+
+
+    // Process markdown elements
+    let markers = ["#### ", "### ", "## ", "# ", "`", "***", "**","*"]
+    for marker in markers {
+        while let range = attributedResult.range(of: marker) {
+            attributedResult.replaceSubrange(range, with: AttributedString(""))
+        }
+    }
 
     return attributedResult
 }
