@@ -171,15 +171,15 @@ extension View {
         }
      
     
-
-        // Add search term highlighting at the end
-        if !searchTerm.isEmpty {
+  if !searchTerm.isEmpty {
             // Split search term into individual words and filter out empty terms
             let searchTerms = searchTerm.split(separator: " ")
                 .map(String.init)
                 .filter { !$0.isEmpty }
             let textLowercased = code.lowercased()
             
+        // Add search term highlighting at the end
+      
             // Find all matches for all terms
             var allMatches: [(Range<String.Index>, String)] = []
             for term in searchTerms {
@@ -311,9 +311,6 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
                let attributedRange = Range(headerRange, in: attributedResult) {
                 attributedResult[attributedRange].inlinePresentationIntent = .stronglyEmphasized
             }
-            if let fullRange = Range(match.range(at: 1), in: attributedResult) {
-                attributedResult.replaceSubrange(fullRange, with: AttributedString(""))
-            }
         }
     }
     
@@ -366,7 +363,23 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
         }
     }
     
-
+    // Inline code
+    if let regex = try? NSRegularExpression(pattern: "`([^`]+)`", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches.reversed() {
+            if let fullRange = Range(match.range, in: attributedResult) {
+                var codeText = attributedResult[fullRange]
+                codeText.inlinePresentationIntent = .code
+                codeText.backgroundColor = Color.black.opacity(0.5)
+                // Remove the backticks
+                if let start = codeText.characters.index(codeText.startIndex, offsetBy: 1, limitedBy: codeText.endIndex),
+                   let end = codeText.characters.index(codeText.endIndex, offsetBy: -1, limitedBy: codeText.startIndex) {
+                    codeText = codeText[start..<end]
+                }
+                attributedResult.replaceSubrange(fullRange, with: codeText)
+            }
+        }
+    }
 
     // Process markdown elements
     let markers = ["#### ", "### ", "## ", "# ", "`", "***", "**","*"]
@@ -375,6 +388,61 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
             attributedResult.replaceSubrange(range, with: AttributedString(""))
         }
     }
+
+    let replaceMarkers = ["- "]
+    for marker in replaceMarkers {
+        while let range = attributedResult.range(of: marker) {
+            var bulletPoint = AttributedString("• ")
+            bulletPoint.inlinePresentationIntent = .stronglyEmphasized
+            bulletPoint.font = .boldSystemFont(ofSize: NSFont.systemFontSize + 2.5)
+            attributedResult.replaceSubrange(range, with: bulletPoint)
+        }
+    }
+
+      
+  if !searchTerm.isEmpty {
+            // Split search term into individual words and filter out empty terms
+            let searchTerms = searchTerm.split(separator: " ")
+                .map(String.init)
+                .filter { !$0.isEmpty }
+            let textLowercased = text.lowercased()
+            
+        // Add search term highlighting at the end
+      
+            // Find all matches for all terms
+            var allMatches: [(Range<String.Index>, String)] = []
+            for term in searchTerms {
+                let termLowercased = term.lowercased()
+                // Create pattern that matches the term anywhere, including within words
+                let pattern = NSRegularExpression.escapedPattern(for: termLowercased)
+                
+                if let regex = try? NSRegularExpression(pattern: pattern) {
+                    let matches = regex.matches(in: textLowercased, range: NSRange(location: 0, length: textLowercased.utf16.count))
+                    
+                    // Convert each match to a String.Index range
+                    for match in matches {
+                        if let range = Range(match.range, in: textLowercased) {
+                            allMatches.append((range, term))
+                        }
+                    }
+                }
+            }
+            
+            // Sort matches by location (in reverse order to not invalidate ranges)
+            allMatches.sort { $0.0.lowerBound > $1.0.lowerBound }
+            
+            // Apply highlighting to each match
+            for (range, _) in allMatches {
+                if let attributedRange = Range(range, in: attributedResult) {
+                    var highlightedText = attributedResult[attributedRange]
+                    highlightedText.backgroundColor = Color.yellow
+                    highlightedText.foregroundColor = Color.black
+                    highlightedText.inlinePresentationIntent = .stronglyEmphasized
+                    attributedResult.replaceSubrange(attributedRange, with: highlightedText)
+            }
+        }
+    }
+
 
     return attributedResult
 }
