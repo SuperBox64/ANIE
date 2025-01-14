@@ -37,7 +37,7 @@ extension View {
                 }
             }
         }
-        
+      
 
         // Color variable names after let/var blue
         if let regex = try? NSRegularExpression(pattern: "(?<=\\b(?:let|var)\\s+)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*=)", options: []) {
@@ -62,13 +62,12 @@ extension View {
         // Combined pattern for typeCyan
         if let regex = try? NSRegularExpression(pattern: "\\b[A-Z][a-zA-Z0-9_]*\\b(?!\\s*\\{)|(?<=\\[)[A-Z][a-zA-Z0-9_]*(?=\\])", options: []) {
             applyColor(regex, typeCyan)
+        } 
+            //Color string contents orange (excluding interpolation)
+        if let regex = try? NSRegularExpression(pattern: "\"[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*\"", options: []) {
+            applyColor(regex, stringOrange)
         }
-        
-        // Color Swift types orange
-        if let regex = try? NSRegularExpression(pattern: "\\b(String|Int|Double)\\b", options: []) {
-            applyColor(regex, typeOrange)
-        }
-        
+
         // Combined pattern for all blue coloring
         if let regex = try? NSRegularExpression(pattern: "(?:(?<=\\b(?:let|var)\\s)[^=:]+(?=\\s*[=:])|(?<=func\\s)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()|[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)|_(?=[a-zA-Z]))", options: []) {
             applyColor(regex, varBlue)
@@ -83,6 +82,8 @@ extension View {
         if let regex = try? NSRegularExpression(pattern: "\\b\\d+(?:\\.\\d+)?\\b", options: []) {
             applyColor(regex, numberYellow)
         }
+
+    
 
         // Combined pattern for methodPurple
         if let regex = try? NSRegularExpression(pattern: "\\.(?:append|isEmpty|count|forEach)\\b", options: []) {
@@ -129,9 +130,10 @@ extension View {
             applyColor(regex, defaultColor)
         }
 
-        // Color string contents orange (excluding interpolation)
-        if let regex = try? NSRegularExpression(pattern: "\"[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*\"", options: []) {
-            applyColor(regex, stringOrange)
+       
+        // Color Swift types orange
+        if let regex = try? NSRegularExpression(pattern: "\\b(String|Int|Double)\\b", options: []) {
+            applyColor(regex, typeOrange)
         }
         
          // Combined pattern for methodPurple
@@ -155,6 +157,16 @@ extension View {
             applyColor(regex, propGreen)
         }
         
+          // Color parameter names after underscore in default color
+        if let regex = try? NSRegularExpression(pattern: "(?<=_\\s)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)", options: []) {
+            applyColor(regex, defaultColor)
+        }
+
+        // Color method calls like enumerated in purple
+        if let regex = try? NSRegularExpression(pattern: "\\.enumerated\\b", options: []) {
+            applyColor(regex, methodPurple)
+        }
+
         // Color comments gray
         if let regex = try? NSRegularExpression(pattern: "//.*$", options: [.anchorsMatchLines]) {
             applyColor(regex, commentGray)
@@ -164,14 +176,8 @@ extension View {
         if let regex = try? NSRegularExpression(pattern: "//\\s*(?:MARK:|TODO:).*$", options: [.anchorsMatchLines]) {
             applyColor(regex, commentGray, bold: true)
         }
-
-        // Color parameter names after underscore in default color
-        if let regex = try? NSRegularExpression(pattern: "(?<=_\\s)[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*:)", options: []) {
-            applyColor(regex, defaultColor)
-        }
-     
     
-  if !searchTerm.isEmpty {
+        if !searchTerm.isEmpty {
             // Add search term highlighting at the end
             applySearchHighlighting(to: &result, searchTerm: searchTerm, originalText: code, isCurrentSearchResult: isCurrentSearchResult)
         }
@@ -189,7 +195,7 @@ public func extractCodeBlocks(from text: String) -> [(content: String, isCode: B
     let lines = text.components(separatedBy: .newlines)
     
     // Code indicators
-    let codeKeywords = Set(["func", "class", "struct", "import", "var", "let", "enum", "protocol", "extension"])
+    let codeKeywords = Set(["func", "class", "private", "struct", "import", "var", "let", "enum", "protocol", "extension"])
     let syntaxPatterns = [
         "^\\s*[a-zA-Z_][a-zA-Z0-9_]*\\s*[:{]\\s*$",  // Class/struct/enum declarations
         "^\\s*\\}\\s*$",  // Closing braces
@@ -262,7 +268,7 @@ public func extractCodeBlocks(from text: String) -> [(content: String, isCode: B
 public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, searchTerm: String = "", isCurrentSearchResult: Bool = false) -> AttributedString {
     // 1. Create initial AttributedString
     var attributedResult = AttributedString(text)
-    
+
     // 2. Apply markdown formatting to AttributedString
     
     // Headers
@@ -324,28 +330,21 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
             }
         }
     }
-    
-    // // Inline code
-    // if let regex = try? NSRegularExpression(pattern: "`([^`]+)`", options: []) {
-    //     let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
-    //     for match in matches.reversed() {
-    //         if let fullRange = Range(match.range, in: attributedResult) {
-    //             var codeText = attributedResult[fullRange]
-    //             //codeText.inlinePresentationIntent = .code
-    //             //codeText.backgroundColor = Color.black.opacity(0.5)
-    //             codeText.font = .init(name: "Courier Bold", size: NSFont.systemFontSize)
-    //             // Remove the backticks
-    //             if let start = codeText.characters.index(codeText.startIndex, offsetBy: 1, limitedBy: codeText.endIndex),
-    //                let end = codeText.characters.index(codeText.endIndex, offsetBy: -1, limitedBy: codeText.startIndex) {
-    //                 codeText = codeText[start..<end]
-    //             }
-    //             attributedResult.replaceSubrange(fullRange, with: codeText)
-    //         }
-    //     }
-    // }
 
-    //Process markdown elements
-    let markers = ["###### ", "##### ", "#### ", "### ", "## ", "# ", "`", "***", "**","*"]
+
+ 
+    if let regex = try? NSRegularExpression(pattern: " `([^`]+)`", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let boldRange = Range(match.range(at: 1), in: text),
+               let attributedRange = Range(boldRange, in: attributedResult) {
+                 attributedResult[attributedRange].inlinePresentationIntent = InlinePresentationIntent.code
+                attributedResult[attributedRange].backgroundColor = Color.black.opacity(0.5)
+            }
+        }
+    }
+
+    let markers = ["###### ", "##### ", "#### ", "### ", "## ", "# ", "***", "**","*", "`"]
     for marker in markers {
         if let regex = try? NSRegularExpression(pattern: NSRegularExpression.escapedPattern(for: marker), options: []) {
             let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
@@ -353,26 +352,26 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
                 if let range = Range(match.range, in: attributedResult) {
                     var invisible = AttributedString(marker)
                     invisible.foregroundColor = .clear
-                    invisible.font = .systemFont(ofSize: 0.1)
+                    invisible.font = .systemFont(ofSize: 0.001)
                     attributedResult.replaceSubrange(range, with: invisible)
                 }
             }
         }
     }
-
-    // let replaceMarkers = ["-"]
-    // for marker in replaceMarkers {
-    //     while let range = attributedResult.range(of: marker) {
-    //         var bulletPoint = AttributedString("•")
-    //        // bulletPoint.inlinePresentationIntent = .stronglyEmphasized
-    //         //bulletPoint.font = .boldSystemFont(ofSize: NSFont.systemFontSize + 2.5)
-    //         //attributedResult.replaceSubrange(range, with: bulletPoint)
-    //     }
-    // }
-
   
     // Add search term highlighting at the end
     applySearchHighlighting(to: &attributedResult, searchTerm: searchTerm, originalText: text, isCurrentSearchResult: isCurrentSearchResult)
+    
+    // Must run after search... because these are longer characters
+    let replaceMarkers = ["- "]
+    for marker in replaceMarkers {
+        while let range = attributedResult.range(of: marker) {
+            var bulletPoint = AttributedString("• ")
+            bulletPoint.inlinePresentationIntent = .stronglyEmphasized
+            bulletPoint.font = .boldSystemFont(ofSize: NSFont.systemFontSize + 2.5)
+            attributedResult.replaceSubrange(range, with: bulletPoint)
+        }
+    }
     
     return attributedResult
 }
@@ -405,7 +404,7 @@ private func applySearchHighlighting(to attributedString: inout AttributedString
         for (range, _) in allMatches {
             if let attributedRange = Range(range, in: attributedString) {
                 var highlightedText = attributedString[attributedRange]
-                highlightedText.backgroundColor = Color.yellow
+                    highlightedText.backgroundColor = Color.yellow
                 highlightedText.foregroundColor = .black
                 highlightedText.inlinePresentationIntent = .stronglyEmphasized
                 attributedString.replaceSubrange(attributedRange, with: highlightedText)

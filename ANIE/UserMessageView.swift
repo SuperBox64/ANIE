@@ -17,7 +17,8 @@ struct UserMessageView: View {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
                     if block.isCode {
-                        let isCode = true
+                        let swiftKeywords = ["func ", "class ", "struct ", "print", "var ", "enum ", "case ", "Swift ", "```swift"]
+                        let isSwift = swiftKeywords.contains { block.content.contains($0) }               
                         
                         ZStack(alignment: .bottomTrailing) {
                             Text(formatSwiftCode(block.content, colorScheme: colorScheme, searchTerm: searchTerm, isCurrentSearchResult: isCurrentSearchResult))
@@ -30,9 +31,7 @@ struct UserMessageView: View {
                                 .padding(.trailing, 3)
                                 .padding(.bottom, 3)
                         }
-                        .background(isCode ? 
-                            (colorScheme == .dark ? Color.black : Color.white) :
-                            Color(nsColor: NSColor.windowBackgroundColor).opacity(0.3))
+                        .background(Color.black.opacity(0.7))
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
@@ -40,11 +39,12 @@ struct UserMessageView: View {
                         .cornerRadius(8)
                         .padding(6)
                     } else {
-                        Text(try! AttributedString(markdown: block.content, options: .init(
-                            allowsExtendedAttributes: true,
-                            interpretedSyntax: .inlineOnlyPreservingWhitespace,
-                            failurePolicy: .returnPartiallyParsedIfPossible
-                        )))
+                        Text(formatMarkdown(block.content, colorScheme: colorScheme, searchTerm: searchTerm, isCurrentSearchResult: isCurrentSearchResult))
+//                        //Text(try! AttributedString(markdown: block.content, options: .init(
+//                            allowsExtendedAttributes: true,
+//                            interpretedSyntax: .inlineOnlyPreservingWhitespace,
+//                            failurePolicy: .returnPartiallyParsedIfPossible
+//                        )))
                         .textSelection(.enabled)
                         .foregroundColor(.white)
                     }
