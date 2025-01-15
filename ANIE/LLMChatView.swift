@@ -91,6 +91,19 @@ struct LLMChatView: View {
                         .disabled(viewModel.activeSearchTerm.isEmpty || viewModel.filteredMessages?.isEmpty ?? true || (viewModel.filteredMessages.map { currentSearchIndex >= $0.count - 1 } ?? true))
                         .opacity(viewModel.activeSearchTerm.isEmpty ? 0.5 : 1.0)
                         
+                        Button(action: {
+                            viewModel.searchTerm = ""
+                            viewModel.activeSearchTerm = ""
+                            currentSearchIndex = 0
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.black)
+                                .background(Circle().fill(Color.white))
+                        }
+                        .buttonStyle(.plain)
+                        .opacity(viewModel.searchTerm.isEmpty ? 0.5 : 1.0)
+                        
+                        
                         TextField("Search messages...", text: $viewModel.searchTerm)
                             .textFieldStyle(PlainTextFieldStyle())
                             .frame(maxWidth: .infinity)
