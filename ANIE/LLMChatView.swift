@@ -24,6 +24,7 @@ struct LLMChatView: View {
     @State private var showingClearDialog = false
     @State private var currentSearchIndex: Int = 0
     @State private var selectedMessageId: UUID? = nil
+    @Environment(\.colorScheme) private var colorScheme
     
     private func scrollToMessage(_ messageId: UUID) {
         selectedMessageId = messageId
@@ -62,7 +63,7 @@ struct LLMChatView: View {
                             }
                         }) {
                             Image(systemName: "chevron.up")
-                                .foregroundColor(.white)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
@@ -82,7 +83,7 @@ struct LLMChatView: View {
                             }
                         }) {
                             Image(systemName: "chevron.down")
-                                .foregroundColor(.white)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.green)
@@ -97,8 +98,8 @@ struct LLMChatView: View {
                             currentSearchIndex = 0
                         }) {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.black)
-                                .background(Circle().fill(Color.white))
+                                .foregroundColor(colorScheme == .dark ? .black : .white)
+                                .background(Circle().fill(colorScheme == .dark ? Color.white : Color.black))
                         }
                         .buttonStyle(.plain)
                         .opacity(viewModel.searchTerm.isEmpty ? 0.5 : 1.0)
@@ -133,7 +134,7 @@ struct LLMChatView: View {
                     .padding(6)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.black)
+                            .fill(colorScheme == .dark ? Color.black : Color(nsColor: NSColor.windowBackgroundColor))
                             .shadow(color: Color(.separatorColor).opacity(0.5), radius: 2)
                     )
                     .frame(maxWidth: .infinity)
@@ -320,9 +321,6 @@ struct LLMChatView: View {
         }
     }
     
-
-    // MARK: BADASS
-
     private func sendMessage() {
         guard !userInput.isEmpty && !viewModel.isProcessing else { return }
         let messageToSend = userInput

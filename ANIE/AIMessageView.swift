@@ -31,7 +31,7 @@ struct AIMessageView: View {
                                 .padding(.trailing, 3)
                                 .padding(.bottom, 3)
                         }
-                        .background(Color.black.opacity(0.7))
+                        .background(colorScheme == .dark ? Color.black.opacity(0.7) : Color.white.opacity(0.9))
                        
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)

@@ -31,7 +31,8 @@ struct UserMessageView: View {
                                 .padding(.trailing, 3)
                                 .padding(.bottom, 3)
                         }
-                        .background(Color.black.opacity(0.7))
+                        .background(colorScheme == .dark ? Color.black.opacity(0.7) : Color.white.opacity(0.9))
+
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
@@ -40,11 +41,6 @@ struct UserMessageView: View {
                         .padding(6)
                     } else {
                         Text(formatMarkdown(block.content, colorScheme: colorScheme, searchTerm: searchTerm, isCurrentSearchResult: isCurrentSearchResult))
-//                        //Text(try! AttributedString(markdown: block.content, options: .init(
-//                            allowsExtendedAttributes: true,
-//                            interpretedSyntax: .inlineOnlyPreservingWhitespace,
-//                            failurePolicy: .returnPartiallyParsedIfPossible
-//                        )))
                         .textSelection(.enabled)
                         .foregroundColor(.white)
                     }

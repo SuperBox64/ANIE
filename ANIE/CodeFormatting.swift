@@ -8,20 +8,58 @@ extension View {
         let text = code as NSString
         let range = NSRange(location: 0, length: text.length)
         
-        // Colors from HTML with exact hex values
-        let defaultColor = Color(nsColor: NSColor(red: 0xd0/255, green: 0xe8/255, blue: 0xdc/255, alpha: 1.0))   // #d0e8dc - default text
-        let keywordPink = Color(nsColor: NSColor(red: 0xff/255, green: 0x60/255, blue: 0x70/255, alpha: 1.0))    // #ff6070 - keywords (bold)
-        let commentGray = Color(nsColor: NSColor(red: 0x75/255, green: 0x89/255, blue: 0x92/255, alpha: 1.0))    // #758992 - comments
-        let classGreen = Color(nsColor: NSColor(red: 0x89/255, green: 0xff/255, blue: 0x2b/255, alpha: 1.0))     // #89ff2b - class names
-        let varBlue = Color(nsColor: NSColor(red: 0x60/255, green: 0xa5/255, blue: 0xff/255, alpha: 1.0))        // #60a5ff - variables/functions
-        let typeOrange = Color(nsColor: NSColor(red: 0xfd/255, green: 0x97/255, blue: 0x09/255, alpha: 1.0))     // #fd9709 - Int/Double/Float
-        let propGreen = Color(nsColor: NSColor(red: 0x30/255, green: 0xd0/255, blue: 0x40/255, alpha: 1.0))      // #30d040 - property access
-        let typeCyan = Color(nsColor: NSColor(red: 0x27/255, green: 0xf8/255, blue: 0xff/255, alpha: 1.0))       // #27f8ff - Student type
-        let funcMagenta = Color(nsColor: NSColor(red: 0xd8/255, green: 0x4d/255, blue: 0xbf/255, alpha: 1.0))    // #d84dbf - print/append/forEach
-        let methodPurple = Color(nsColor: NSColor(red: 0xc0/255, green: 0x8a/255, blue: 0xff/255, alpha: 1.0))   // #c08aff - isEmpty/count
-        let numberYellow = Color(nsColor: NSColor(red: 0xd0/255, green: 0xbc/255, blue: 0x56/255, alpha: 1.0))   // #d0bc56 - numbers
-        let stringOrange = Color(nsColor: NSColor(red: 0xfd/255, green: 0x9f/255, blue: 0x39/255, alpha: 1.0))   // #fd9f39 - String type
-        let methodGreen = Color(nsColor: NSColor(red: 0x98/255, green: 0xff/255, blue: 0xb3/255, alpha: 1.0))      // #98ffb3 - method calls
+        // Colors based on color scheme
+        let defaultColor: Color = colorScheme == .dark 
+            ? Color(nsColor: NSColor(red: 0xd0/255, green: 0xd0/255, blue: 0xd0/255, alpha: 1.0))   // Dark: #d0e8dc
+            : Color(nsColor: NSColor(red: 0x1a/255, green: 0x1a/255, blue: 0x1a/255, alpha: 1.0))   // Light: #1a1a1a
+            
+        let keywordPink: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0xff/255, green: 0x60/255, blue: 0x70/255, alpha: 1.0))    // Dark: #ff6070
+            : Color(nsColor: NSColor(red: 0xd7/255, green: 0x00/255, blue: 0x3f/255, alpha: 1.0))    // Light: #d7003f
+            
+        let commentGray: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0x75/255, green: 0x89/255, blue: 0x92/255, alpha: 1.0))    // Dark: #758992
+            : Color(nsColor: NSColor(red: 0x5c/255, green: 0x6b/255, blue: 0x73/255, alpha: 1.0))    // Light: #5c6b73
+            
+        let classGreen: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0x89/255, green: 0xff/255, blue: 0x2b/255, alpha: 1.0))    // Dark: #89ff2b
+            : Color(nsColor: NSColor(red: 0x2d/255, green: 0x99/255, blue: 0x00/255, alpha: 1.0))    // Light: #2d9900
+            
+        let varBlue: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0x60/255, green: 0xa5/255, blue: 0xff/255, alpha: 1.0))    // Dark: #60a5ff
+            : Color(nsColor: NSColor(red: 0x00/255, green: 0x66/255, blue: 0xcc/255, alpha: 1.0))    // Light: #0066cc
+            
+        let typeOrange: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0xfd/255, green: 0x97/255, blue: 0x09/255, alpha: 1.0))    // Dark: #fd9709
+            : Color(nsColor: NSColor(red: 0xcc/255, green: 0x66/255, blue: 0x00/255, alpha: 1.0))    // Light: #cc6600
+            
+        let propGreen: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0x30/255, green: 0xd0/255, blue: 0x40/255, alpha: 1.0))    // Dark: #30d040
+            : Color(nsColor: NSColor(red: 0x00/255, green: 0x99/255, blue: 0x33/255, alpha: 1.0))    // Light: #009933
+            
+        let typeCyan: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0x27/255, green: 0xf8/255, blue: 0xff/255, alpha: 1.0))    // Dark: #27f8ff
+            : Color(nsColor: NSColor(red: 0x00/255, green: 0x99/255, blue: 0xcc/255, alpha: 1.0))    // Light: #0099cc
+            
+        let funcMagenta: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0xd8/255, green: 0x4d/255, blue: 0xbf/255, alpha: 1.0))    // Dark: #d84dbf
+            : Color(nsColor: NSColor(red: 0x99/255, green: 0x00/255, blue: 0x99/255, alpha: 1.0))    // Light: #990099
+            
+        let methodPurple: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0xc0/255, green: 0x8a/255, blue: 0xff/255, alpha: 1.0))    // Dark: #c08aff
+            : Color(nsColor: NSColor(red: 0x66/255, green: 0x33/255, blue: 0x99/255, alpha: 1.0))    // Light: #663399
+            
+        let numberYellow: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0xd0/255, green: 0xbc/255, blue: 0x56/255, alpha: 1.0))    // Dark: #d0bc56
+            : Color(nsColor: NSColor(red: 0x99/255, green: 0x85/255, blue: 0x00/255, alpha: 1.0))    // Light: #998500
+            
+        let stringOrange: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0xfd/255, green: 0x9f/255, blue: 0x39/255, alpha: 1.0))    // Dark: #fd9f39
+            : Color(nsColor: NSColor(red: 0xcc/255, green: 0x66/255, blue: 0x00/255, alpha: 1.0))    // Light: #cc6600
+            
+        let methodGreen: Color = colorScheme == .dark
+            ? Color(nsColor: NSColor(red: 0x98/255, green: 0xff/255, blue: 0xb3/255, alpha: 1.0))    // Dark: #98ffb3
+            : Color(nsColor: NSColor(red: 0x00/255, green: 0x99/255, blue: 0x66/255, alpha: 1.0))    // Light: #009966
         
         func applyColor(_ regex: NSRegularExpression, _ color: Color, bold: Bool = false) {
             let matches = regex.matches(in: code, range: range)
@@ -339,7 +377,7 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
             if let boldRange = Range(match.range(at: 1), in: text),
                let attributedRange = Range(boldRange, in: attributedResult) {
                  attributedResult[attributedRange].inlinePresentationIntent = InlinePresentationIntent.code
-                attributedResult[attributedRange].backgroundColor = Color.black.opacity(0.5)
+                attributedResult[attributedRange].backgroundColor = colorScheme == .dark ? Color.black.opacity(0.5) : Color.white.opacity(0.5)
             }
         }
     }
