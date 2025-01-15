@@ -378,20 +378,27 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
 
 private func applySearchHighlighting(to attributedString: inout AttributedString, searchTerm: String, originalText: String, isCurrentSearchResult: Bool = false) {
     if !searchTerm.isEmpty {
-        let searchTerms = searchTerm.split(separator: " ")
-            .map(String.init)
-            .filter { !$0.isEmpty }
-        
-        // Collect all matches first
         var allMatches: [(Range<String.Index>, String)] = []
         
-        for term in searchTerms {
-            let pattern = NSRegularExpression.escapedPattern(for: term)
+        // If search term contains spaces, treat it as one exact phrase
+        if searchTerm.contains(" ") {
+            let pattern = NSRegularExpression.escapedPattern(for: searchTerm)
             if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
                 let matches = regex.matches(in: originalText, range: NSRange(location: 0, length: originalText.utf16.count))
                 for match in matches {
                     if let range = Range(match.range, in: originalText) {
-                        allMatches.append((range, term))
+                        allMatches.append((range, searchTerm))
+                    }
+                }
+            }
+        } else {
+            // No spaces - use original partial word matching
+            let pattern = NSRegularExpression.escapedPattern(for: searchTerm)
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+                let matches = regex.matches(in: originalText, range: NSRange(location: 0, length: originalText.utf16.count))
+                for match in matches {
+                    if let range = Range(match.range, in: originalText) {
+                        allMatches.append((range, searchTerm))
                     }
                 }
             }
@@ -404,7 +411,7 @@ private func applySearchHighlighting(to attributedString: inout AttributedString
         for (range, _) in allMatches {
             if let attributedRange = Range(range, in: attributedString) {
                 var highlightedText = attributedString[attributedRange]
-                    highlightedText.backgroundColor = Color.yellow
+                highlightedText.backgroundColor = Color.yellow
                 highlightedText.foregroundColor = .black
                 highlightedText.inlinePresentationIntent = .stronglyEmphasized
                 attributedString.replaceSubrange(attributedRange, with: highlightedText)

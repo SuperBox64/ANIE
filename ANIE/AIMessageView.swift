@@ -17,7 +17,7 @@ struct AIMessageView: View {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
                     if block.isCode {
-                        let swiftKeywords = ["func ", "class ", "struct ", "print", "var ", "enum ", "case ", "Swift ", "```swift"]
+                        let swiftKeywords = ["func ", "class ", "struct ", "print", "var ", "enum ", "case ", "Swift ", "```swift", "```"]
                         let isSwift = swiftKeywords.contains { block.content.contains($0) }
                         
                         ZStack(alignment: .bottomTrailing) {

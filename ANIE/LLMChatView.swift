@@ -110,6 +110,7 @@ struct LLMChatView: View {
                                     // Give SwiftUI time to update the view
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                         withAnimation {
+                                            scrollProxy?.scrollTo("top", anchor: .top)
                                             scrollProxy?.scrollTo(messages[0].id, anchor: .top)
                                         }
                                     }
@@ -145,6 +146,11 @@ struct LLMChatView: View {
                 // Messages ScrollView
                 ScrollViewReader { proxy in
                     ScrollView {
+
+                        Color.clear
+                            .frame(height: 1)
+                            .id("top")
+
                         LazyVStack(spacing: 9) {
                             if let session = viewModel.currentSession {
                                 ForEach(session.messages) { message in
