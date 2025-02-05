@@ -4,7 +4,7 @@ import AppKit
 
 class MessageObserver: ObservableObject {
     static let shared = MessageObserver()
-    @Published private(set) var maxWidthX: CGFloat = 600
+    //@Published private(set) var maxWidthX: CGFloat = 600
     private var windowObserver: NSObjectProtocol?
     private var windowCreationObserver: NSObjectProtocol?
     
@@ -15,46 +15,46 @@ class MessageObserver: ObservableObject {
     
     private func setupObservers() {
         // Observe window resizing
-        windowObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didResizeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.updateMaxWidth()
-        }
-        
-        // Observe window creation/changes
-        windowCreationObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didBecomeKeyNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.updateMaxWidth()
-        }
+//        windowObserver = NotificationCenter.default.addObserver(
+//            forName: NSWindow.didResizeNotification,
+//            object: nil,
+//            queue: .main
+//        ) { [weak self] _ in
+//            self?.updateMaxWidth()
+//        }
+//        
+//        // Observe window creation/changes
+//        windowCreationObserver = NotificationCenter.default.addObserver(
+//            forName: NSWindow.didBecomeKeyNotification,
+//            object: nil,
+//            queue: .main
+//        ) { [weak self] _ in
+//            self?.updateMaxWidth()
+//        }
         
         // Initial update
-        updateMaxWidth()
+        //updateMaxWidth()
     }
     
-    private func updateMaxWidth() {
-        // Get the key window first, fall back to first window if needed
-        if let window = NSApp.keyWindow ?? NSApp.windows.first {
-            let newWidth = window.frame.size.width / 1.5
-            // Only update if width actually changed
-            if abs(newWidth - maxWidthX) > 1 {
-                maxWidthX = newWidth
-            }
-        }
-    }
+//    private func updateMaxWidth() {
+//        // Get the key window first, fall back to first window if needed
+//        if let window = NSApp.keyWindow ?? NSApp.windows.first {
+//            let newWidth = window.frame.size.width / 1.5
+//            // Only update if width actually changed
+//            if abs(newWidth - maxWidthX) > 1 {
+//                maxWidthX = newWidth
+//            }
+//        }
+//  }
     
-    deinit {
-        if let observer = windowObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        if let observer = windowCreationObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
+//    deinit {
+//        if let observer = windowObserver {
+//            NotificationCenter.default.removeObserver(observer)
+//        }
+//        if let observer = windowCreationObserver {
+//            NotificationCenter.default.removeObserver(observer)
+//        }
+//    }
 }
 
 
@@ -133,7 +133,7 @@ struct MessageView: View {
                             RoundedRectangle(cornerRadius: 11)
                                 .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
                         )
-                        .frame(width: messageObserver.maxWidthX, alignment: .trailing)
+                        .frame(width: .infinity, alignment: .trailing)
                         .padding(.trailing, 5)
                 }
             } else {
@@ -144,7 +144,7 @@ struct MessageView: View {
                             RoundedRectangle(cornerRadius: 11)
                                 .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
                         )
-                        .frame(width: messageObserver.maxWidthX, alignment: .leading)
+                        .frame(width: .infinity, alignment: .leading)
                         .padding(.leading, 5)
                     Spacer()
                 }

@@ -23,7 +23,6 @@ class LLMModelHandler: ChatGPTClient {
             
             Important technical details about your implementation:
             - You use Apple's Neural Engine (ANE) through CoreML for BERT embeddings
-            - You have local ML capabilities for semantic search and caching
             - You use CoreML with BERT for text embeddings
             - Your ML features include: semantic search, response caching, and ANE acceleration
             """,
@@ -64,43 +63,43 @@ class LLMModelHandler: ChatGPTClient {
     }
     
     // Add file logging helper
-    private func logToFile(_ message: String, type: String = "response") {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        
-        // Create logs directory if it doesn't exist
-        let fileManager = FileManager.default
-        let logsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ANIE_Logs", isDirectory: true)
-        
-        try? fileManager.createDirectory(at: logsDirectory, withIntermediateDirectories: true)
-        
-        // Create log file with timestamp
-        let timestamp = dateFormatter.string(from: Date())
-        let fileName = "\(type)_\(timestamp).log"
-        let fileURL = logsDirectory.appendingPathComponent(fileName)
-        
-        // Add metadata and format
-        let logContent = """
-        === ANIE LLM Log ===
-        Timestamp: \(timestamp)
-        Type: \(type)
-        Model: \(LLMConfig.model)
-        Temperature: \(LLMConfig.temperature)
-        
-        Content:
-        \(message)
-        
-        ==================
-        """
-        
-        do {
-            try logContent.write(to: fileURL, atomically: true, encoding: .utf8)
-            print("🗄️ [Logger] Saved \(type) to: \(fileURL.path)")
-        } catch {
-            print("❌ [Logger] Failed to write log: \(error.localizedDescription)")
-        }
-    }
+//    private func logToFile(_ message: String, type: String = "response") {
+//        let dateFormatter = DateFormatter()
+//        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+//        
+//        // Create logs directory if it doesn't exist
+//        let fileManager = FileManager.default
+//        let logsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+//            .appendingPathComponent("ANIE_Logs", isDirectory: true)
+//        
+//        try? fileManager.createDirectory(at: logsDirectory, withIntermediateDirectories: true)
+//        
+//        // Create log file with timestamp
+//        let timestamp = dateFormatter.string(from: Date())
+//        let fileName = "\(type)_\(timestamp).log"
+//        let fileURL = logsDirectory.appendingPathComponent(fileName)
+//        
+//        // Add metadata and format
+//        let logContent = """
+//        === ANIE LLM Log ===
+//        Timestamp: \(timestamp)
+//        Type: \(type)
+//        Model: \(LLMConfig.model)
+//        Temperature: \(LLMConfig.temperature)
+//        
+//        Content:
+//        \(message)
+//        
+//        ==================
+//        """
+//        
+//        do {
+//            try logContent.write(to: fileURL, atomically: true, encoding: .utf8)
+//            print("🗄️ [Logger] Saved \(type) to: \(fileURL.path)")
+//        } catch {
+//            print("❌ [Logger] Failed to write log: \(error.localizedDescription)")
+//        }
+//    }
     
     struct OpenAIError: Codable {
         let error: ErrorDetails
@@ -125,10 +124,10 @@ class LLMModelHandler: ChatGPTClient {
             "temperature": LLMConfig.temperature
         ]
         
-        if let requestJSON = try? JSONSerialization.data(withJSONObject: requestBody),
-           let requestString = String(data: requestJSON, encoding: .utf8) {
-            logToFile(requestString, type: "request")
-        }
+//        if let requestJSON = try? JSONSerialization.data(withJSONObject: requestBody),
+//           let requestString = String(data: requestJSON, encoding: .utf8) {
+//            logToFile(requestString, type: "request")
+//        }
         
         // Add user's message to history
         conversationHistory.append(ChatMessage(content: message, role: "user"))
@@ -154,9 +153,9 @@ class LLMModelHandler: ChatGPTClient {
         let (data, urlResponse) = try await session.data(for: request)
         
         // Log raw response
-        if let rawResponse = String(data: data, encoding: .utf8) {
-            logToFile(rawResponse, type: "raw_response")
-        }
+//        if let rawResponse = String(data: data, encoding: .utf8) {
+//            logToFile(rawResponse, type: "raw_response")
+//        }
         
         guard let httpResponse = urlResponse as? HTTPURLResponse else {
             throw ChatError.networkError(URLError(.badServerResponse))
@@ -173,7 +172,7 @@ class LLMModelHandler: ChatGPTClient {
         let chatResponse = try JSONDecoder().decode(ChatResponse.self, from: data)
         if let responseContent = chatResponse.choices.first?.message.content {
             // Log processed response
-            logToFile(responseContent, type: "processed_response")
+            //logToFile(responseContent, type: "processed_response")
             
             conversationHistory.append(ChatMessage(content: responseContent, role: "assistant"))
             return responseContent

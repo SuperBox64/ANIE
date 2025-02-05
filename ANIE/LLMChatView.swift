@@ -154,6 +154,7 @@ struct LLMChatView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .padding(.bottom, 18)
                 }
                 .padding([.top, .horizontal], 8)
                 
@@ -213,10 +214,10 @@ struct LLMChatView: View {
                             .font(.system(size: 12))
                             .padding(.leading, 22)
                         
-                        Toggle("Local ML", isOn: $useLocalAI)
-                            .toggleStyle(.switch)
-                            .help("Use local ML for AI/ML related queries")
-                            .scaleEffect(0.8)
+//                        Toggle("Local ML", isOn: $useLocalAI)
+//                            .toggleStyle(.switch)
+//                            .help("Use local ML for AI/ML related queries")
+//                            .scaleEffect(0.8)
                         
                         if viewModel.isProcessing {
                             Spacer()
