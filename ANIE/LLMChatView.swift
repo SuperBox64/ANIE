@@ -168,14 +168,28 @@ struct LLMChatView: View {
 
                         LazyVStack(spacing: 9) {
                             if let session = viewModel.currentSession {
-                                ForEach(session.messages) { message in
-                                    MessageView(
-                                        message: message, 
-                                        searchTerm: viewModel.activeSearchTerm,
-                                        isCurrentSearchResult: viewModel.filteredMessages?.indices.contains(currentSearchIndex) == true && 
-                                            viewModel.filteredMessages?[currentSearchIndex].id == message.id
-                                    )
-                                    .id(message.id)
+                                ForEach(Array(session.messages.enumerated()), id: \.element.id) { index, message in
+                                        MessageView(
+                                            message: message, 
+                                            searchTerm: viewModel.activeSearchTerm,
+                                            isCurrentSearchResult: viewModel.filteredMessages?.indices.contains(currentSearchIndex) == true && 
+                                                viewModel.filteredMessages?[currentSearchIndex].id == message.id,
+                                            isOmitted: Binding(
+                                                get: { message.isOmitted },
+                                                set: { newValue in
+                                                    // When toggling a user message, also toggle the corresponding AI response
+                                                    if message.isUser && index + 1 < session.messages.count {
+                                                        viewModel.toggleMessagePairOmitted(
+                                                            userMessageId: message.id,
+                                                            aiMessageId: session.messages[index + 1].id,
+                                                        isOmitted: newValue  // The value is already correct here
+                                                        )
+                                                    }
+                                                }
+                                            ),
+                                            showCheckbox: message.isUser // Only show checkbox for user messages
+                                        )
+                                        .id(message.id)
                                 }
                             }
                         }

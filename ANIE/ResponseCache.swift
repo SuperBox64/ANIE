@@ -6,6 +6,7 @@ struct CachedResponse: Codable {
     let embeddings: [Float]
     let timestamp: Date
     let sessionId: UUID
+    var isOmitted: Bool  // Add isOmitted flag to cached responses
 }
 
 class ResponseCache {
@@ -24,25 +25,48 @@ class ResponseCache {
     private init() {
         self.embeddings = EmbeddingsService.shared.generator
         loadCache()
+        expireOldCacheEntries()
     }
     
     // Add persistence methods
     private func loadCache() {
         if let data = UserDefaults.standard.data(forKey: cacheKey),
            let savedCache = try? JSONDecoder().decode([CachedResponse].self, from: data) {
-            cache = savedCache
+            // Aggressively filter out omitted responses
+            cache = savedCache.filter { !$0.isOmitted }
+            expireOldCacheEntries()
+            // Double check no omitted responses slipped through
+            cache = cache.filter { !$0.isOmitted }
             print("📚 Loaded \(cache.count) items from BERT cache")
+            saveCache() // Immediately save to persist the filtered state
         }
     }
     
     private func saveCache() {
-        if let data = try? JSONEncoder().encode(cache) {
+        // Aggressively filter before saving
+        cache = cache.filter { !$0.isOmitted }
+        let nonOmittedCache = cache.filter { !$0.isOmitted }
+        if let data = try? JSONEncoder().encode(nonOmittedCache) {
             UserDefaults.standard.set(data, forKey: cacheKey)
-            print("💾 Saved \(cache.count) items to BERT cache")
+            UserDefaults.standard.synchronize() // Force immediate write
+            print("💾 Saved \(nonOmittedCache.count) items to BERT cache")
         }
     }
     
+    // Add cache expiration method
+    private func expireOldCacheEntries() {
+        let expirationDate = Date().addingTimeInterval(-24 * 60 * 60) // 24 hours ago
+        // Aggressively filter out both expired and omitted responses
+        cache = cache.filter { $0.timestamp > expirationDate }
+        cache = cache.filter { !$0.isOmitted }
+        print("🕒 Expired old cache entries. Remaining items: \(cache.count)")
+        saveCache() // Immediately save to persist the filtered state
+    }
+    
     func findSimilarResponse(for query: String, sessionId: UUID) throws -> String? {
+        // Aggressively purge omitted responses before searching
+        purgeOmittedResponses(for: sessionId)
+        
         guard let embeddings = self.embeddings else {
             print("⚠️ Embeddings generator not available")
             return nil
@@ -68,8 +92,8 @@ class ResponseCache {
             // Find most similar cached response
             var bestMatch: (similarity: Float, response: String, query: String)? = nil
             
-            // Only look at responses from the same session
-            let sessionResponses = cache.filter { $0.sessionId == sessionId }
+            // Only look at responses from the same session and that aren't omitted
+            let sessionResponses = cache.filter { $0.sessionId == sessionId && !$0.isOmitted }
             
             for cached in sessionResponses {
                 // Normalize cached query the same way
@@ -159,6 +183,10 @@ class ResponseCache {
             }
             
             if let match = bestMatch {
+                if isErrorResponse(match.response) {
+                    print("⚠️ Cached response is an error, fetching new response from LLM")
+                    return nil // Indicate that a new call should be made
+                }
                 print("🎯 Using cached response:")
                 print("   Query: '\(normalizedQuery)'")
                 print("   Matched with: '\(match.query)'")
@@ -175,33 +203,57 @@ class ResponseCache {
         }
     }
     
-    func cacheResponse(query: String, response: String, sessionId: UUID) throws {
+    func cacheResponse(query: String, response: String, sessionId: UUID, isOmitted: Bool = false) throws {
+        // Aggressively purge omitted responses first
+        purgeOmittedResponses(for: sessionId)
+        
         guard let embeddings = self.embeddings else {
             print("⚠️ Cannot cache: embeddings generator not available")
+            return
+        }
+        
+        if isErrorResponse(response) {
+            print("⚠️ Not caching error response for query: \(query)")
+            return
+        }
+        
+        // Don't cache omitted responses
+        if isOmitted {
+            print("⚠️ Not caching omitted response for query: \(query)")
+            purgeOmittedResponses(for: sessionId) // Double check purge
             return
         }
         
         do {
             let queryEmbeddings = try embeddings.generateEmbeddings(for: query)
             
+            // Double check no omitted responses exist for this session
+            cache = cache.filter { !($0.sessionId == sessionId && $0.isOmitted) }
+            
             let cachedResponse = CachedResponse(
                 query: query,
                 response: response,
                 embeddings: queryEmbeddings,
                 timestamp: Date(),
-                sessionId: sessionId
+                sessionId: sessionId,
+                isOmitted: isOmitted
             )
             
             cache.append(cachedResponse)
+            expireOldCacheEntries() // This will also save the cache
             print("✅ Cached new response for query: \(query)")
             print("📊 Total cached items: \(cache.count)")
-            
-            // Save cache after adding new item
-            saveCache()
             
         } catch {
             print("⚠️ Failed to cache response: \(error.localizedDescription)")
         }
+    }
+    
+    // Helper method to determine if a response is an error
+    private func isErrorResponse(_ response: String) -> Bool {
+        // Implement logic to determine if the response is an error
+        // For example, check if the response contains specific error keywords
+        return response.contains("error") || response.contains("failed")
     }
     
     // Add cache management methods
@@ -217,6 +269,69 @@ class ResponseCache {
         print("   • In-memory cache cleared")
         print("   • Persisted cache cleared")
         print("   • Total items: 0")
+    }
+    
+    // Add method to purge omitted responses for a session
+    func purgeOmittedResponses(for sessionId: UUID) {
+        let beforeCount = cache.count
+        
+        // Aggressively remove omitted responses from memory
+        cache = cache.filter { !$0.isOmitted } // Remove all omitted responses
+        cache = cache.filter { !($0.sessionId == sessionId && $0.isOmitted) } // Double check session-specific
+        
+        // Force save the updated cache
+        saveCache()
+        UserDefaults.standard.synchronize()
+        
+        let afterCount = cache.count
+        let removedCount = beforeCount - afterCount
+        
+        print("🧹 Purged omitted responses:")
+        print("   • Before: \(beforeCount) items")
+        print("   • After: \(afterCount) items")
+        print("   • Removed: \(removedCount) items")
+        print("   • Session: \(sessionId)")
+    }
+    
+    // Add method to force purge all omitted responses
+    func forcePurgeAllOmittedResponses() {
+        let beforeCount = cache.count
+        
+        // Aggressively remove all omitted responses
+        cache = cache.filter { !$0.isOmitted }
+        
+        // Force save
+        saveCache()
+        UserDefaults.standard.synchronize()
+        
+        let afterCount = cache.count
+        let removedCount = beforeCount - afterCount
+        
+        print("🧹 Force purged ALL omitted responses:")
+        print("   • Before: \(beforeCount) items")
+        print("   • After: \(afterCount) items")
+        print("   • Removed: \(removedCount) items")
+    }
+    
+    // Add method to completely delete all cached responses for a session
+    func deleteEntireSessionCache(for sessionId: UUID) {
+        let beforeCount = cache.count
+        
+        // Remove ALL responses for this session, regardless of omitted state
+        cache = cache.filter { $0.sessionId != sessionId }
+        
+        // Force save the updated cache
+        saveCache()
+        UserDefaults.standard.synchronize()
+        
+        let afterCount = cache.count
+        let removedCount = beforeCount - afterCount
+        
+        print("🧹 DELETED ENTIRE SESSION CACHE:")
+        print("   • Session: \(sessionId)")
+        print("   • Before: \(beforeCount) items")
+        print("   • After: \(afterCount) items")
+        print("   • Removed: \(removedCount) items")
     }
     
     private func cosineSimilarity(_ a: [Float], _ b: [Float]) -> Float {

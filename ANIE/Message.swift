@@ -9,8 +9,9 @@ struct Message: Identifiable, Codable, Equatable {
     let usedLocalAI: Bool
     let imageData: Data?
     let isError: Bool
+    var isOmitted: Bool
     
-    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date(), usedBERT: Bool = false, usedLocalAI: Bool = false, imageData: Data? = nil, isError: Bool = false) {
+    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date(), usedBERT: Bool = false, usedLocalAI: Bool = false, imageData: Data? = nil, isError: Bool = false, isOmitted: Bool = false) {
         self.id = id
         self.content = content
         self.isUser = isUser
@@ -19,6 +20,7 @@ struct Message: Identifiable, Codable, Equatable {
         self.usedLocalAI = usedLocalAI
         self.imageData = imageData
         self.isError = isError
+        self.isOmitted = isOmitted
     }
     
     // Coding keys
@@ -31,6 +33,7 @@ struct Message: Identifiable, Codable, Equatable {
         case usedLocalAI
         case imageData
         case isError
+        case isOmitted
     }
     
     // Implement custom decoding
@@ -44,6 +47,7 @@ struct Message: Identifiable, Codable, Equatable {
         usedLocalAI = try container.decodeIfPresent(Bool.self, forKey: .usedLocalAI) ?? false
         imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
         isError = try container.decodeIfPresent(Bool.self, forKey: .isError) ?? false
+        isOmitted = try container.decodeIfPresent(Bool.self, forKey: .isOmitted) ?? false
     }
     
     // Implement custom encoding
@@ -57,6 +61,7 @@ struct Message: Identifiable, Codable, Equatable {
         try container.encode(usedLocalAI, forKey: .usedLocalAI)
         try container.encodeIfPresent(imageData, forKey: .imageData)
         try container.encode(isError, forKey: .isError)
+        try container.encode(isOmitted, forKey: .isOmitted)
     }
     
     // Equatable conformance
@@ -68,6 +73,7 @@ struct Message: Identifiable, Codable, Equatable {
         lhs.usedBERT == rhs.usedBERT &&
         lhs.usedLocalAI == rhs.usedLocalAI &&
         lhs.imageData == rhs.imageData &&
-        lhs.isError == rhs.isError
+        lhs.isError == rhs.isError &&
+        lhs.isOmitted == rhs.isOmitted
     }
 } 

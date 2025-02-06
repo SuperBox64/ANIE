@@ -29,9 +29,16 @@ class ChatManager {
         self.currentSessionId = sessionId
     }
     
-    func processMessage(_ message: String) async throws -> String {
+    func processMessage(_ message: String, isOmitted: Bool = false) async throws -> String {
         guard let sessionId = currentSessionId else {
             throw ChatError.noActiveSession
+        }
+        
+        // Aggressively purge omitted responses at the start of processing
+        if isOmitted {
+            // Double purge to be safe
+            cache.purgeOmittedResponses(for: sessionId)
+            cache.forcePurgeAllOmittedResponses()
         }
         
         // Handle ML commands first
@@ -55,8 +62,13 @@ class ChatManager {
         
         // Regular processing flow when LocalAI is disabled
         do {
+            // Purge again before checking cache
+            if isOmitted {
+                cache.purgeOmittedResponses(for: sessionId)
+            }
+            
             // Try cache first
-            if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) {
+            if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) && !isOmitted {
                 await MainActor.run {
                     print("🔍 Checking cache for: \(message)")
                 }
@@ -74,9 +86,14 @@ class ChatManager {
             // Try API
             let response = try await apiClient.generateResponse(for: message)
             
-            // Cache if appropriate
-            if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) {
-                try cache.cacheResponse(query: message, response: response, sessionId: sessionId)
+            // Final purge before caching new response
+            if isOmitted {
+                cache.purgeOmittedResponses(for: sessionId)
+            }
+            
+            // Cache if appropriate and not omitted
+            if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) && !isOmitted {
+                try cache.cacheResponse(query: message, response: response, sessionId: sessionId, isOmitted: isOmitted)
                 await MainActor.run {
                     print("📥 Cached new response")
                 }

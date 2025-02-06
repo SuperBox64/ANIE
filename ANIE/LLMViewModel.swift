@@ -186,9 +186,10 @@ class LLMViewModel: ObservableObject {
                 // Brief loading time for visual feedback
                 try? await Task.sleep(nanoseconds: 100_000_000)  // 0.1 seconds
                 
-                // Restore conversation history for the selected session
+                // Restore conversation history for the selected session - only non-omitted messages
                 if let session = sessions.first(where: { $0.id == id }) {
-                    modelHandler.restoreConversation(from: session.messages)
+                    let activeMessages = session.messages.filter { !$0.isOmitted }
+                    modelHandler.restoreConversation(from: activeMessages)
                 }
                 
                 // Only stop loading and show checkmark if we're not processing a message
@@ -204,11 +205,17 @@ class LLMViewModel: ObservableObject {
         guard let index = sessions.firstIndex(where: { $0.id == selectedSessionId }) else { return }
         sessions[index].messages.append(message)
         saveSessions()
+        
+        // When adding a new message, restore conversation with only non-omitted messages
+        if let session = sessions.first(where: { $0.id == selectedSessionId }) {
+            let activeMessages = session.messages.filter { !$0.isOmitted }
+            modelHandler.restoreConversation(from: activeMessages)
+        }
     }
     
     @MainActor
     func processUserInput(_ input: String) async {
-        guard currentSession != nil else { return }
+        guard let currentSession = currentSession else { return }
         
         isProcessing = true
         isLoadingSession = true
@@ -256,7 +263,11 @@ class LLMViewModel: ObservableObject {
                 }
             }
             
-            let response = try await chatManager.processMessage(input)
+            // Get the isOmitted state from the current message
+            let isOmitted = message.isOmitted
+            
+            // Pass isOmitted state to chatManager
+            let response = try await chatManager.processMessage(input, isOmitted: isOmitted)
             
             // Cancel the progress animation task
             progressTask.cancel()
@@ -274,7 +285,8 @@ class LLMViewModel: ObservableObject {
                 content: cleanResponse,
                 isUser: false,
                 usedBERT: usedBERT,
-                usedLocalAI: usedLocalAI
+                usedLocalAI: usedLocalAI,
+                isOmitted: isOmitted  // Set same omitted state as the user message
             )
             
             // Progress to 100% right before adding message
@@ -309,7 +321,8 @@ class LLMViewModel: ObservableObject {
             let responseMessage = Message(
                 content: errorMessage,
                 isUser: false,
-                isError: true
+                isError: true,
+                isOmitted: message.isOmitted  // Set same omitted state as the user message
             )
             
             // Set to 100% before showing error
@@ -397,5 +410,47 @@ class LLMViewModel: ObservableObject {
         return session.messages.filter { message in
             message.content.localizedCaseInsensitiveContains(activeSearchTerm)
         }
+    }
+    
+    // Replace the old toggle method with the new pair toggle
+    func toggleMessagePairOmitted(userMessageId: UUID, aiMessageId: UUID, isOmitted: Bool) {
+        guard let sessionIndex = sessions.firstIndex(where: { $0.id == selectedSessionId }) else {
+            return
+        }
+        
+        // Update user message
+        if let userMessageIndex = sessions[sessionIndex].messages.firstIndex(where: { $0.id == userMessageId }) {
+            var updatedUserMessage = sessions[sessionIndex].messages[userMessageIndex]
+            updatedUserMessage.isOmitted = isOmitted
+            sessions[sessionIndex].messages[userMessageIndex] = updatedUserMessage
+        }
+        
+        // Update AI response
+        if let aiMessageIndex = sessions[sessionIndex].messages.firstIndex(where: { $0.id == aiMessageId }) {
+            var updatedAIMessage = sessions[sessionIndex].messages[aiMessageIndex]
+            updatedAIMessage.isOmitted = isOmitted
+            sessions[sessionIndex].messages[aiMessageIndex] = updatedAIMessage
+        }
+        
+        // If messages are being removed (isOmitted = true), delete ALL cached responses for this session
+        if isOmitted, let sessionId = selectedSessionId {
+            ResponseCache.shared.deleteEntireSessionCache(for: sessionId)
+        }
+        
+        // After toggling, restore conversation with only non-omitted messages
+        let activeMessages = sessions[sessionIndex].messages.filter { !$0.isOmitted }
+        modelHandler.restoreConversation(from: activeMessages)
+        
+        // Save sessions
+        saveSessions()
+        
+        // Notify observers
+        objectWillChange.send()
+    }
+    
+    // When getting messages for display or export, filter out omitted messages
+    var activeMessages: [Message] {
+        guard let session = currentSession else { return [] }
+        return session.messages.filter { !$0.isOmitted }
     }
 } 
