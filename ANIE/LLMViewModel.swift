@@ -50,7 +50,49 @@ class LLMViewModel: ObservableObject {
             apiClient: modelHandler
         )
         
+        // Add observer for model updates
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleModelUpdate),
+            name: Notification.Name("ModelDidUpdateNotification"),
+            object: nil
+        )
+        
         loadSessions()
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    @objc private func handleModelUpdate(_ notification: Notification) {
+        Task { @MainActor in
+            // Show loading state
+            isLoadingSession = true
+            
+            // Reinitialize chat manager with current state
+            let preprocessor = MessagePreprocessor()
+            self.chatManager = ChatManager(
+                preprocessor: preprocessor,
+                apiClient: modelHandler
+            )
+            
+            // CRITICAL: Set current session in chat manager first
+            if let sessionId = selectedSessionId {
+                chatManager.setCurrentSession(sessionId)
+            }
+            
+            // Then restore current session if exists
+            if let session = currentSession {
+                let activeMessages = session.messages.filter { !$0.isOmitted }
+                modelHandler.restoreConversation(from: activeMessages)
+            }
+            
+            // Reset loading state
+            isLoadingSession = false
+            
+            print("✅ Chat system reinitialized with new model")
+        }
     }
     
     // Add logging helper

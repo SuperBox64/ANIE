@@ -13,6 +13,7 @@ class LLMModelHandler: ChatGPTClient {
     private var apiKey: String
     private var baseURL: String
     private var conversationHistory: [ChatMessage] = []
+    private var currentModel: String
     
     private var systemPrompt: ChatMessage {
         ChatMessage(
@@ -33,6 +34,7 @@ class LLMModelHandler: ChatGPTClient {
     init() {
         self.apiKey = LLMAIConfig.apiKey
         self.baseURL = LLMAIConfig.baseURL
+        self.currentModel = UserDefaults.standard.string(forKey: "llm-model") ?? "gpt-3.5-turbo"
         conversationHistory.append(systemPrompt)
         
         // Add observer for credential changes
@@ -40,6 +42,14 @@ class LLMModelHandler: ChatGPTClient {
             self,
             selector: #selector(credentialsDidChange),
             name: Notification.Name("CredentialsDidChange"),
+            object: nil
+        )
+        
+        // Add observer for model changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(modelDidChange),
+            name: UserDefaults.didChangeNotification,
             object: nil
         )
     }
@@ -50,6 +60,26 @@ class LLMModelHandler: ChatGPTClient {
            let baseURL = userInfo["baseURL"] as? String {
             self.apiKey = apiKey
             self.baseURL = baseURL
+        }
+    }
+    
+    @objc private func modelDidChange(_ notification: Notification) {
+        if let newModel = UserDefaults.standard.string(forKey: "llm-model") {
+            self.currentModel = newModel
+            print("🔄 Model updated to: \(newModel)")
+            
+            // Clear and reinitialize conversation state
+            conversationHistory.removeAll()
+            conversationHistory.append(systemPrompt)
+            
+            // Notify that model was updated
+            NotificationCenter.default.post(
+                name: Notification.Name("ModelDidUpdateNotification"),
+                object: nil,
+                userInfo: ["model": newModel]
+            )
+            
+            print("🔄 Reinitialized conversation state with new model: \(newModel)")
         }
     }
     
@@ -114,9 +144,9 @@ class LLMModelHandler: ChatGPTClient {
     func generateResponse(for message: String) async throws -> String {
         let url = URL(string: "\(baseURL)/chat/completions")!
         
-        // Log the request
+        // Use current model instead of LLMConfig
         let requestBody: [String: Any] = [
-            "model": LLMConfig.model,
+            "model": currentModel,
             "messages": conversationHistory.map { [
                 "role": $0.role,
                 "content": $0.content
@@ -143,7 +173,7 @@ class LLMModelHandler: ChatGPTClient {
         ] }
         
         let body: [String: Any] = [
-            "model": LLMConfig.model,
+            "model": currentModel,  // Use current model
             "messages": messages,
             "temperature": LLMConfig.temperature
         ]

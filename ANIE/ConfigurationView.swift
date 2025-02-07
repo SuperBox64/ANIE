@@ -11,6 +11,10 @@ struct ConfigurationView: View {
     @AppStorage("useLocalAI") private var useLocalAI = false
     @AppStorage("llm-model") private var model = "gpt-3.5-turbo"
     @AppStorage("llm-temperature") private var temperature = 0.7
+    @AppStorage("cached-models") private var cachedModelsData: Data = Data()
+    @State private var availableModels: [String] = []
+    @State private var isLoadingModels = false
+    @State private var showingModelSelector = false
     
 //    private var redactedApiKey: String {
 //        if credentialsManager.isConfigured {
@@ -30,8 +34,22 @@ struct ConfigurationView: View {
         }
     }
     
+    private func loadCachedModels() {
+        if let models = try? JSONDecoder().decode([String].self, from: cachedModelsData) {
+            availableModels = models
+            print("📚 Loaded \(models.count) cached models")
+        }
+    }
+    
+    private func saveCachedModels() {
+        if let data = try? JSONEncoder().encode(availableModels) {
+            cachedModelsData = data
+            print("💾 Cached \(availableModels.count) models")
+        }
+    }
+    
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 0) {
             // Close button in top-right corner
             HStack {
                 Spacer()
@@ -45,16 +63,20 @@ struct ConfigurationView: View {
                 .buttonStyle(.plain)
                 .padding([.top, .trailing], 20)
             }
+            .padding(.bottom, 10)
             
             // App Icon and Title
             Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
                 .resizable()
                 .frame(width: 100, height: 100)
+                .padding(.bottom, 10)
             
             Text("ANIE Configuration")
                 .font(.title)
                 .fontWeight(.bold)
+                .padding(.bottom, 20)
             
+            // Main content area with light background
             VStack(alignment: .leading, spacing: 20) {
                 Text("LLM API Configuration")
                     .font(.headline)
@@ -65,7 +87,6 @@ struct ConfigurationView: View {
                     if credentialsManager.isConfigured {
                         SecureField("[API Key Redacted]", text: $apiKey)
                             .textFieldStyle(.roundedBorder)
-                            .frame(width: 400)
                             .onChange(of: apiKey) { newValue in
                                 // Only update if user starts typing
                                 if !newValue.isEmpty && newValue != "[API Key Redacted]" {
@@ -78,7 +99,6 @@ struct ConfigurationView: View {
                     } else {
                         SecureField("Enter API Key", text: $apiKey)
                             .textFieldStyle(.roundedBorder)
-                            .frame(width: 400)
                     }
                 }
                 
@@ -90,7 +110,6 @@ struct ConfigurationView: View {
                         text: $baseURL
                     )
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 400)
                 }
                 
                 Divider()
@@ -101,22 +120,82 @@ struct ConfigurationView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Model")
                         .foregroundColor(.secondary)
-                    TextField("Model name", text: $model)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 400)
+                    
+                    HStack(spacing: 8) {
+                        TextField("Model name", text: $model)
+                            .textFieldStyle(.roundedBorder)
+                        
+                        Button {
+                            showingModelSelector = true
+                        } label: {
+                            Image(systemName: "chevron.down.circle.fill")
+                                .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(availableModels.isEmpty)
+                        .popover(isPresented: $showingModelSelector, arrowEdge: .top) {
+                            VStack(alignment: .leading) {
+                                Text("Available Models")
+                                    .font(.headline)
+                                    .padding()
+                                
+                                if isLoadingModels {
+                                    HStack {
+                                        ProgressView()
+                                            .scaleEffect(0.5)
+                                        Text("Loading models...")
+                                    }
+                                    .padding()
+                                } else {
+                                    List(availableModels, id: \.self) { modelName in
+                                        Button {
+                                            model = modelName
+                                            showingModelSelector = false
+                                            shouldRefresh = true
+                                        } label: {
+                                            HStack {
+                                                Text(modelName)
+                                                if model == modelName {
+                                                    Spacer()
+                                                    Image(systemName: "checkmark")
+                                                        .foregroundColor(.accentColor)
+                                                }
+                                            }
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .frame(width: 300, height: 500)  // Made significantly taller
+                                }
+                            }
+                            .padding(.vertical)
+                        }
+                        
+                        Button("Refresh") {
+                            Task {
+                                await refreshAvailableModels()
+                            }
+                        }
+                        .disabled(isLoadingModels || apiKey.isEmpty || baseURL.isEmpty)
+                    }
                 }
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Temperature (\(temperature, specifier: "%.1f"))")
+                    Text("Temperature")
                         .foregroundColor(.secondary)
-                    Slider(value: $temperature, in: 0...2) {
-                        Text("Temperature")
+                        .fontWeight(.bold)
+                    
+                    HStack(spacing: 12) {
+                        Text("\(temperature, specifier: "%.1f")")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 12))
+                            .frame(alignment: .leading)
+                        
+                        Slider(value: $temperature, in: 0...2)
                     }
-                    .frame(width: 400)
                 }
                 
-                HStack(spacing: 20) {
-                    Button("Cancel") {
+                HStack(spacing: 32) {
+                    Button("Close Window") {
                         dismiss()
                     }
                     .keyboardShortcut(.escape, modifiers: [])
@@ -159,10 +238,11 @@ struct ConfigurationView: View {
                     .fill(Color(.windowBackgroundColor))
                     .shadow(radius: 2)
             )
-            
-            Spacer()
+            .padding(.horizontal, 40)  // Add horizontal padding
+            .padding(.bottom, 40)      // Add bottom padding
         }
-        .frame(width: 500, height: 600)
+        .frame(width: 580, height: 680)  // Increased size to accommodate padding
+        .background(Color(.windowBackgroundColor).opacity(0.2))  // Slightly darker background for contrast
         .alert("Configuration Error", isPresented: $showingAlert) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -170,9 +250,50 @@ struct ConfigurationView: View {
         }
         .onAppear {
             loadExistingCredentials()
+            loadCachedModels()
         }
         .onChange(of: model) { newValue in
             UserDefaults.standard.set(newValue, forKey: "selectedModel")
         }
     }
-} 
+    
+    private func refreshAvailableModels() async {
+        isLoadingModels = true
+        defer { isLoadingModels = false }
+        
+        do {
+            let cleanBaseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            let modelsURL = URL(string: "\(cleanBaseURL)/models")!
+            
+            var request = URLRequest(url: modelsURL)
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let response = try JSONDecoder().decode(ModelsResponse.self, from: data)
+            
+            await MainActor.run {
+                availableModels = response.data
+                    .filter { $0.id.contains("gpt") }  // Only show GPT models
+                    .map { $0.id }
+                    .sorted()
+                
+                // Cache the fetched models
+                saveCachedModels()
+            }
+        } catch {
+            await MainActor.run {
+                alertMessage = "Failed to fetch models: \(error.localizedDescription)"
+                showingAlert = true
+            }
+        }
+    }
+}
+
+// Add model response types
+struct ModelInfo: Codable {
+    let id: String
+}
+
+struct ModelsResponse: Codable {
+    let data: [ModelInfo]
+}
