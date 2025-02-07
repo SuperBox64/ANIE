@@ -14,9 +14,9 @@ class ResponseCache {
     
     private var cache: [CachedResponse] = []
     private let embeddings: EmbeddingsGenerator?
-    private let similarityThreshold: Float = 0.8
+    private let similarityThreshold: Float = 0.95
     private let cacheKey = "bert_response_cache"
-    private let maxLengthDifference = 0.2
+    private let maxLengthDifference = 0.1
     
     var threshold: Float {
         return similarityThreshold
@@ -72,6 +72,17 @@ class ResponseCache {
             return nil
         }
         
+        // Get session responses FIRST and exit early if empty
+        let sessionResponses = cache.filter { $0.sessionId == sessionId && !$0.isOmitted }
+        
+        // Early exit if no history for this session
+        if sessionResponses.isEmpty {
+            print("📝 No cache history for session \(sessionId)")
+            return nil
+        }
+        
+        print("🔍 Searching through \(sessionResponses.count) cached responses for session \(sessionId)")
+        
         do {
             // Normalize query by:
             // 1. Trimming whitespace and standardizing line endings
@@ -92,9 +103,7 @@ class ResponseCache {
             // Find most similar cached response
             var bestMatch: (similarity: Float, response: String, query: String)? = nil
             
-            // Only look at responses from the same session and that aren't omitted
-            let sessionResponses = cache.filter { $0.sessionId == sessionId && !$0.isOmitted }
-            
+            // Only use responses from the filtered session list
             for cached in sessionResponses {
                 // Normalize cached query the same way
                 let normalizedCachedQuery = cached.query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -112,8 +121,8 @@ class ResponseCache {
                                 Double(max(queryWords.count, cachedWords.count))
                 
                 // Be more lenient with length differences
-                if lengthRatio < (1.0 - maxLengthDifference * 1.5) {
-                    print("📏 Length mismatch:")
+                if lengthRatio < (1.0 - maxLengthDifference) {
+                    print("📏 Length mismatch for cached query: '\(normalizedCachedQuery)'")
                     print("   Query words: \(queryWords.count)")
                     print("   Cached words: \(cachedWords.count)")
                     continue
@@ -155,9 +164,10 @@ class ResponseCache {
                 
                 let overlapRatio = Double(commonWords.count) / Double(queryWords.count)
                 
-                // Be more lenient with word overlap
-                if overlapRatio < 0.5 {  // Reduced from 0.7 to 0.5 (50% word overlap required)
-                    print("📚 Low word overlap: \(Int(overlapRatio * 100))%")
+                // Much stricter word overlap requirement
+                if overlapRatio < 0.8 {
+                    print("📚 Low word overlap for cached query: '\(normalizedCachedQuery)'")
+                    print("   Overlap ratio: \(Int(overlapRatio * 100))%")
                     continue
                 }
                 
@@ -168,10 +178,8 @@ class ResponseCache {
                 print("   Similarity: \(similarity)")
                 print("   Word overlap: \(Int(overlapRatio * 100))%")
                 
-                // Be slightly more lenient with similarity threshold for high word overlap
-                let adjustedThreshold = overlapRatio > 0.8 ? similarityThreshold * 0.9 : similarityThreshold
-                
-                if similarity > adjustedThreshold {
+                // Remove leniency for high word overlap - always use strict threshold
+                if similarity > similarityThreshold {
                     if bestMatch == nil || similarity > bestMatch!.similarity {
                         bestMatch = (similarity, cached.response, normalizedCachedQuery)
                         print("✅ New best match found:")
@@ -194,7 +202,7 @@ class ResponseCache {
                 return match.response + "\n[Retrieved using BERT]"
             }
             
-            print("❌ No similar responses found (threshold: \(similarityThreshold))")
+            print("❌ No similar responses found in session \(sessionId) (threshold: \(similarityThreshold))")
             return nil
             
         } catch {

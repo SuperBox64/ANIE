@@ -34,87 +34,139 @@ class ChatManager {
             throw ChatError.noActiveSession
         }
         
-        // Aggressively purge omitted responses at the start of processing
+        // If message is omitted, delete entire session cache
         if isOmitted {
-            // Double purge to be safe
-            cache.purgeOmittedResponses(for: sessionId)
-            cache.forcePurgeAllOmittedResponses()
+            cache.deleteEntireSessionCache(for: sessionId)
+            return "Message omitted"
         }
         
-        // Handle ML commands first
+        // Handle ML commands first - these are ONLY handled by LocalAI
         if message.lowercased().hasPrefix("!ml") {
-            return handleMLCommand(message.lowercased())
+            return try await handleMLCommand(message.lowercased())
         }
         
-        let useLocalAI = UserDefaults.standard.bool(forKey: "useLocalAI")
-        
-        // Local AI mode - all processing happens locally
-        if useLocalAI {
-            await MainActor.run {
-                print("🧠 Using LocalAI for query: \(message)")
-            }
-            let response = try await localAI.generateResponse(for: message, sessionId: sessionId)
-            await MainActor.run {
-                print("🧠 LocalAI generated response")
-            }
-            return response + "\n[Using LocalAI]"
+        // Try LocalAI for persona queries
+        let localResponse = try await localAI.generateResponse(for: message, sessionId: sessionId)
+        if !localResponse.isEmpty {
+            return localResponse + "\n[Using LocalAI]"
         }
         
-        // Regular processing flow when LocalAI is disabled
-        do {
-            // Purge again before checking cache
-            if isOmitted {
-                cache.purgeOmittedResponses(for: sessionId)
-            }
-            
-            // Try cache first
-            if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) && !isOmitted {
-                await MainActor.run {
-                    print("🔍 Checking cache for: \(message)")
-                }
+        // For all other queries, try cache first
+        if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) && !isOmitted {
+            do {
                 if let cachedResponse = try cache.findSimilarResponse(for: message, sessionId: sessionId) {
-                    await MainActor.run {
-                        print("✨ Cache hit! Using cached response")
-                    }
                     return cachedResponse + "\n[Retrieved using BERT]"
                 }
-                await MainActor.run {
-                    print("💫 No cache hit, generating new response")
-                }
+            } catch let error {
+                // Log but continue - cache errors shouldn't block network request
+                print("Cache error: \(error.localizedDescription)")
             }
-            
-            // Try API
+        }
+        
+        // Finally try network
+        do {
             let response = try await apiClient.generateResponse(for: message)
-            
-            // Final purge before caching new response
-            if isOmitted {
-                cache.purgeOmittedResponses(for: sessionId)
-            }
             
             // Cache if appropriate and not omitted
             if preprocessor.shouldCache(message) && !preprocessor.isMLRelatedQuery(message) && !isOmitted {
-                try cache.cacheResponse(query: message, response: response, sessionId: sessionId, isOmitted: isOmitted)
-                await MainActor.run {
-                    print("📥 Cached new response")
+                do {
+                    try cache.cacheResponse(query: message, response: response, sessionId: sessionId, isOmitted: isOmitted)
+                } catch let error {
+                    print("Cache error: \(error.localizedDescription)")
                 }
             }
             
             return response
             
         } catch let error as NSError {
-            // If network is offline, fallback to local AI
             if error.domain == NSURLErrorDomain && error.code == NSURLErrorNotConnectedToInternet {
-                await MainActor.run {
-                    print("🌐 Network offline, falling back to Local AI")
-                }
-                let response = try await localAI.generateResponse(for: message, sessionId: sessionId)
-                return response + "\n[Using LocalAI - Network Offline]"
+                throw ChatError.networkError(error)
             }
-            throw error
+            throw ChatError.networkError(error)
         }
     }
     
-    private func handleMLCommand(_ command: String) -> String {
+    // Add a method to test ML performance
+    func runMLPerformanceTest() async -> String {
+        var results = ["=== ML Performance Test ===\n"]
+        let testMessages = [
+            "Hello, how are you?",
+            "What's the weather like today?",
+            "Can you help me with a complex programming task?",
+            "Tell me a joke",
+            "Explain quantum computing"
+        ]
+        
+        // Test BERT embeddings performance
+        results.append("🧮 BERT Embeddings Performance:")
+        if let generator = EmbeddingsService.shared.generator {
+            let start = CFAbsoluteTimeGetCurrent()
+            for message in testMessages {
+                do {
+                    _ = try await generator.generateEmbeddings(for: message)
+                } catch {
+                    results.append("• Error: \(error.localizedDescription)")
+                }
+            }
+            let end = CFAbsoluteTimeGetCurrent()
+            let avgTime = (end - start) * 1000 / Double(testMessages.count)
+            results.append("• Average embedding time: \(String(format: "%.2f", avgTime))ms")
+            results.append("• Using ANE: \(MLDeviceCapabilities.hasANE)")
+            results.append("• Compute Units: \(MLDeviceCapabilities.getOptimalComputeUnits())")
+        } else {
+            results.append("• BERT model not loaded")
+        }
+        
+        // Test cache performance
+        results.append("\n💾 Cache Performance:")
+        let cacheSize = cache.getCacheSize()
+        results.append("• Total cached items: \(cacheSize)")
+        results.append("• Similarity threshold: \(String(format: "%.2f", cache.threshold))")
+        
+        let start = CFAbsoluteTimeGetCurrent()
+        for message in testMessages {
+            if let sessionId = currentSessionId {
+                do {
+                    _ = try cache.findSimilarResponse(for: message, sessionId: sessionId)
+                } catch {
+                    // Ignore errors in test
+                }
+            }
+        }
+        let end = CFAbsoluteTimeGetCurrent()
+        let avgSearchTime = (end - start) * 1000 / Double(testMessages.count)
+        results.append("• Average search time: \(String(format: "%.2f", avgSearchTime))ms")
+        
+        // Test preprocessing performance
+        results.append("\n⚡️ Preprocessing Performance:")
+        var totalTime: Double = 0
+        for message in testMessages {
+            let start = CFAbsoluteTimeGetCurrent()
+            _ = preprocessor.shouldCache(message)
+            let end = CFAbsoluteTimeGetCurrent()
+            totalTime += (end - start)
+        }
+        let avgPreprocessTime = totalTime * 1000 / Double(testMessages.count)
+        results.append("• Average preprocess time: \(String(format: "%.2f", avgPreprocessTime))ms")
+        
+        // Test LocalAI performance
+        results.append("\n🧠 LocalAI Performance:")
+        if let sessionId = currentSessionId {
+            let start = CFAbsoluteTimeGetCurrent()
+            do {
+                _ = try await localAI.generateResponse(for: testMessages[0], sessionId: sessionId)
+                let end = CFAbsoluteTimeGetCurrent()
+                results.append("• Response time: \(String(format: "%.2f", (end - start) * 1000))ms")
+            } catch {
+                results.append("• Error: \(error.localizedDescription)")
+            }
+        }
+        
+        results.append("\n=== End of Performance Test ===")
+        return results.joined(separator: "\n")
+    }
+    
+    private func handleMLCommand(_ command: String) async throws -> String {
         // Clean up command by:
         // 1. Trimming whitespace and newlines
         // 2. Converting to lowercase
@@ -127,21 +179,20 @@ class ChatManager {
             .joined(separator: " ")
         
         switch cleanCommand {
+        case "!ml perf":
+            // Run performance test and return results directly
+            return await runMLPerformanceTest()
+            
         case "!ml", "!ml help":  // Handle both !ml and !ml help the same way
             return """
             🤖 ANIE ML Commands:
             
-            !ml status  - Show ML system status including:
-            • CoreML/ANE status
-            • BERT model status
-            • Cache statistics
-            
-            !ml clear   - Clear all caches:
-            • BERT response cache
-            • Conversation history
-            • Persisted data
-            
-            !ml help    - Show this help message
+            !ml status
+            !ml clear
+            !ml bert
+            !ml cache 
+            !ml perf
+            !ml help
             
             Note: BERT caching is automatically disabled for programming questions.
             Current similarity threshold: \(String(format: "%.2f", cache.threshold))
@@ -206,36 +257,31 @@ class ChatManager {
             ========================
             """
             
+        case "!ml bert":
+            return """
+            === BERT Model Information ===
+            
+            📊 Model Configuration:
+            • Status: \(EmbeddingsService.shared.generator != nil ? "Active" : "Inactive")
+            • Type: DistilBERT Base Uncased
+            • Tokenizer: WordPiece
+            • Max Sequence Length: 512
+            
+            🧮 Embeddings:
+            • Dimension: \(EmbeddingsService.shared.generator?.modelInfo()["embeddingDimension"] ?? 0)
+            • Total Operations: \(EmbeddingsService.shared.usageCount)
+            • Using ANE: \(MLDeviceCapabilities.hasANE)
+            
+            ⚡️ Performance:
+            • Compute Units: \(MLDeviceCapabilities.getOptimalComputeUnits())
+            • Average Latency: \(String(format: "%.2f", EmbeddingsService.shared.generator?.modelInfo()["averageLatency"] as? Double ?? 0.0))ms
+            
+            ========================
+            """
+            
         default:
             return "Unknown ML command. Use !ml help to see available commands."
         }
-    }
-    
-    // Add a method to test ML performance
-    func runMLPerformanceTest() async {
-        print("\n=== ML Performance Test ===")
-        let testMessages = [
-            "Hello, how are you?",
-            "What's the weather like today?",
-            "Can you help me with a complex programming task?",
-            "Tell me a joke",
-            "Explain quantum computing"
-        ]
-        
-        print("Testing preprocessing and embedding generation...")
-        for message in testMessages {
-            do {
-                let start = CFAbsoluteTimeGetCurrent()
-                let shouldProcess = try preprocessor.shouldProcessMessage(message)
-                let end = CFAbsoluteTimeGetCurrent()
-                print("Message: '\(message.prefix(20))...'")
-                print("Should process: \(shouldProcess)")
-                print("Processing time: \((end - start) * 1000)ms\n")
-            } catch {
-                print("Error processing message: \(error)")
-            }
-        }
-        print("========================")
     }
 }
 

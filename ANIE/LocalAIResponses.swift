@@ -56,62 +56,19 @@ struct LocalAIResponses {
             - General questions and conversation
             - Task assistance and problem-solving
             - Technical explanations
-            - Basic calculations and analysis
-            
-            I'm currently running in Local AI mode, which means I operate without network connectivity.
+            - Basic calculations and analysis            
             """
         
         static let defaultCapabilities = """
             ANIE's Local AI Capabilities:
             
-            1. Programming Help:
-               - Swift syntax and examples (functions, classes, structs)
-               - SwiftUI and UIKit guidance
-               - Design patterns (MVC, MVVM, Protocol-Oriented)
-               - Error handling and debugging
-               - Memory management and optimization
-               - Concurrency and async/await
-               - Unit testing and test-driven development
-               - Package management and dependencies
-            
-            2. System Information:
-               - Apple Neural Engine (ANE) status and capabilities
-               - CoreML model management and performance
-               - BERT embeddings and semantic search
-               - Cache system and response storage
-               - Memory usage and optimization
-               - Hardware acceleration metrics
-               - System resource utilization
-               - Performance benchmarks and analysis
-            
-            3. Technical Knowledge:
-               - Neural network architectures and training
-               - Machine learning models and algorithms
-               - Natural Language Processing (NLP)
-               - Transformer models and BERT
-               - System architecture patterns
-               - Data processing pipelines
-               - Optimization techniques
-               - Security best practices
-            
-            4. Available Commands:
+            Available Commands:
                - !ml status  (View detailed system status)
                - !ml clear   (Clear all caches and history)
                - !ml help    (Show comprehensive help)
                - !ml bert    (BERT model information)
                - !ml cache   (Cache statistics)
                - !ml perf    (Performance metrics)
-            
-            5. Local Processing Features:
-               - Offline operation capability
-               - Hardware-accelerated responses
-               - Semantic search with BERT
-               - Response caching system
-               - Context-aware processing
-               - Real-time performance metrics
-            
-            How can I assist you with these topics?
-            [Using LocalAI]
             """
     }
     

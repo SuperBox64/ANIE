@@ -306,14 +306,19 @@ class LLMViewModel: ObservableObject {
             
             let errorMessage: String
             switch error {
-            case let ChatError.serverError(code, message):
-                errorMessage = "Error (\(code)): \(message)"
-            case let ChatError.networkError(underlying):
-                errorMessage = "Network Error: \(underlying.localizedDescription)"
-            case ChatError.invalidURL:
-                errorMessage = "Error: Invalid API URL"
-            case let ChatError.decodingError(underlying):
-                errorMessage = "Error: Failed to process response - \(underlying.localizedDescription)"
+            case let error as ChatError:
+                switch error {
+                case .serverError(let code, let message):
+                    errorMessage = "Error (\(code)): \(message)"
+                case .networkError(let underlying):
+                    errorMessage = "Network Error: \(underlying.localizedDescription)"
+                case .invalidURL:
+                    errorMessage = "Error: Invalid API URL"
+                case .decodingError(let underlying):
+                    errorMessage = "Error: Failed to process response - \(underlying.localizedDescription)"
+                case .noActiveSession:
+                    errorMessage = "Error: No active session"
+                }
             default:
                 errorMessage = "Error: \(error.localizedDescription)"
             }
@@ -389,8 +394,12 @@ class LLMViewModel: ObservableObject {
             // Remove last two messages (Q&A pair) if they exist
             if session.messages.count >= 2 {
                 session.messages.removeLast(2)
+                // Clear the cache for this session since we modified history
+                ResponseCache.shared.deleteEntireSessionCache(for: sessionId)
             } else if session.messages.count == 1 {
                 session.messages.removeLast()
+                // Clear the cache for this session since we modified history
+                ResponseCache.shared.deleteEntireSessionCache(for: sessionId)
             }
             
             // Update session
