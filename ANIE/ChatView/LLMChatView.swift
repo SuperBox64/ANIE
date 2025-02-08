@@ -229,7 +229,7 @@ struct LLMChatView: View {
                 }
                 
                 // Bottom input area
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Enter some text (⌘↩ to send)")
                             .foregroundColor(.accentColor)
@@ -245,14 +245,22 @@ struct LLMChatView: View {
                         }
                     }
                     
-                    HStack(alignment: .top, spacing: 22) {
+                    HStack(alignment: .top) {
                         TextEditor(text: $userInput)
-                            .frame(height: 160)
-                            .textFieldStyle(.roundedBorder)
+                            .frame(height: 100)
                             .font(.system(size: 14))
-                            .padding()
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(Color(.textBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color(.separatorColor).opacity(0.3), lineWidth: 0.5)
+                            )
+                            .padding(.leading, 16)
+                            .padding(.bottom, 16) 
                         
-                        VStack(spacing: 22) {
+                        VStack(alignment: .leading, spacing: 16) {
                             Button(action: sendMessage) {
                                 Image(systemName: "arrow.up.circle.fill")
                                     .font(.system(size: 32))
@@ -289,7 +297,10 @@ struct LLMChatView: View {
                                 }
                             }
                         }
-                        .padding(.trailing, 30)
+                        .padding(.top, 8)
+                        .padding(.leading, 8)
+                        .padding(.trailing, 16)
+
                     }
                 }
             }
