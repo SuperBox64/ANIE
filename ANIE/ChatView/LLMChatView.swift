@@ -245,20 +245,12 @@ struct LLMChatView: View {
                         }
                     }
                     
-                    HStack(alignment: .bottom) {
+                    HStack(alignment: .top, spacing: 22) {
                         TextEditor(text: $userInput)
-                            .frame(height: 80)
-                            .textFieldStyle(.plain)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color(.textBackgroundColor))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color(.separatorColor), lineWidth: 1)
-                                    )
-                            )
+                            .frame(height: 160)
+                            .textFieldStyle(.roundedBorder)
                             .font(.system(size: 14))
-                            .padding(.horizontal, 18)
+                            .padding()
                         
                         VStack(spacing: 22) {
                             Button(action: sendMessage) {
