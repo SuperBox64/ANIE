@@ -90,36 +90,47 @@ struct MessageView: View {
         HStack(alignment: .top, spacing: 0) {
             // Only show checkbox for user messages
             if showCheckbox {
-                Toggle("", isOn: Binding(
-                    get: { !isOmitted },  // Invert the binding
-                    set: { newValue in
-                        isOmitted = !newValue  // Invert the value
-                    }
-                ))
+                Button(action: {}) {
+                    Toggle("", isOn: Binding(
+                        get: { !isOmitted },
+                        set: { isOmitted = !$0 }
+                    ))
                     .toggleStyle(CheckboxToggleStyle())
                     .padding(.trailing, 8)
-                    .padding(.top, 3)
+                    .padding(.top, -4)
+                    .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .tooltip(isOmitted ? "Omitted from History" : "Omit from History")
             }
+          
+           
             
             if !message.isUser {
-                VStack(spacing: 2) {
+                VStack() {
                     Text("ANIE")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .padding(.top, 3)
-                        .padding(.bottom, 1)
-                    
+                        .frame(alignment: .leading)
+
                     if message.usedLocalAI {
                         Text("🧠")
                             .font(.system(size: 14))
-                            .padding(.bottom, 2)
+                            .frame(alignment: .leading)
+                            .padding(.leading, -1)
+
                     } else if message.usedBERT {
                         Text("🤖")
                             .font(.system(size: 14))
-                            .padding(.bottom, 2)
+                            .frame(alignment: .leading)
+                            .padding(.leading, -2)
+
+
                     }
                 }
-                .frame(width: 40, alignment: .trailing)
+                .padding(.bottom, 2)
+                .padding(.trailing, 6)
+                .frame(alignment: .leading)
                 .opacity(isOmitted ? 0.5 : 1.0)  // No change needed here since logic is correct
             }
             
@@ -129,8 +140,8 @@ struct MessageView: View {
                     highlightedText(message.content)
                         .textSelection(.enabled)
                         .foregroundColor(.white)
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
+                        .padding(4)
+                        .padding(.horizontal, 1)
                         .background(Color.red)
                         .cornerRadius(11)
                         .overlay(
@@ -138,7 +149,6 @@ struct MessageView: View {
                                 .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
                         )
                 }
-                .padding(.leading, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .opacity(isOmitted ? 0.5 : 1.0)  // No change needed here since logic is correct
             } else if message.isUser {
@@ -151,6 +161,7 @@ struct MessageView: View {
                         )
                         .frame(width: .infinity, alignment: .trailing)
                         .padding(.trailing, 5)
+                        .padding(.bottom, 15)
                         .opacity(isOmitted ? 0.5 : 1.0)  // No change needed here since logic is correct
                 }
             } else {
@@ -161,7 +172,6 @@ struct MessageView: View {
                                 .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
                         )
                         .frame(width: .infinity, alignment: .leading)
-                        .padding(.leading, 5)
                         .opacity(isOmitted ? 0.5 : 1.0)  // No change needed here since logic is correct
                     Spacer()
                 }
@@ -171,25 +181,36 @@ struct MessageView: View {
                 Text("You")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .frame(width: 40, alignment: .leading)
+                    .frame(alignment: .leading)
                     .opacity(isOmitted ? 0.5 : 1.0)  // No change needed here since logic is correct
             }
         }
-        .padding(.horizontal, 7)
-        .padding(.top, 16)
         .transaction { transaction in
             transaction.animation = nil
         }
     }
 }
 
+public extension View {
+    func tooltip(_ toolTip: String) -> some View {
+        self.overlay(TooltipView(toolTip).allowsHitTesting(false))
+    }
+}
 
-
-      
-
-
-
-
-
-
-
+private struct TooltipView: NSViewRepresentable {
+    let toolTip: String
+    
+    init(_ toolTip: String) {
+        self.toolTip = toolTip
+    }
+    
+    func makeNSView(context: NSViewRepresentableContext<TooltipView>) -> NSView {
+        let view = NSView()
+        view.toolTip = toolTip
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: NSViewRepresentableContext<TooltipView>) {
+        nsView.toolTip = toolTip
+    }
+}

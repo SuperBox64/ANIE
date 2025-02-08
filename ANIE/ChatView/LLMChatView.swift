@@ -39,14 +39,16 @@ struct LLMChatView: View {
         HSplitView {
             ChatSidebarView(viewModel: viewModel)
             
-            VStack(spacing: 0) {
+            VStack(spacing: 32) {
                 // Top toolbar
                 HStack {
                     // Search bar
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
-                            
+                            .padding(.leading, 16)
+                            .padding(.trailing, 2)
+                            .padding(.vertical, 8)
                         Text(viewModel.activeSearchTerm.isEmpty ? "0 of 0" : "\(currentSearchIndex + 1) of \(viewModel.filteredMessages?.count ?? 0)")
                             .foregroundColor(.secondary)
                             .font(.system(size: 11))
@@ -108,6 +110,7 @@ struct LLMChatView: View {
                         TextField("Search messages...", text: $viewModel.searchTerm)
                             .textFieldStyle(PlainTextFieldStyle())
                             .frame(maxWidth: .infinity)
+                            .padding(.trailing, 16)
                             .onChange(of: viewModel.searchTerm) { newValue in
                                 // Only reset index if we're not actively searching
                                 if viewModel.activeSearchTerm.isEmpty {
@@ -131,15 +134,13 @@ struct LLMChatView: View {
                                 }
                             }
                     }
-                    .padding(6)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
                             .fill(colorScheme == .dark ? Color.black : Color(nsColor: NSColor.windowBackgroundColor))
                             .shadow(color: Color(.separatorColor).opacity(0.5), radius: 2)
                     )
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, 20)
-                    
+                    .padding(.vertical, 8)
+
                     Button {
                         showingConfiguration = true
                     } label: {
@@ -154,9 +155,8 @@ struct LLMChatView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .padding(.bottom, 18)
                 }
-                .padding([.top, .horizontal], 8)
+                .padding([.horizontal], 8)
                 
                 // Messages ScrollView
                 ScrollViewReader { proxy in
@@ -166,35 +166,43 @@ struct LLMChatView: View {
                             .frame(height: 1)
                             .id("top")
 
-                        LazyVStack(spacing: 9) {
+                        LazyVStack(spacing: 0) {
                             if let session = viewModel.currentSession {
                                 ForEach(Array(session.messages.enumerated()), id: \.element.id) { index, message in
-                                        MessageView(
-                                            message: message, 
-                                            searchTerm: viewModel.activeSearchTerm,
-                                            isCurrentSearchResult: viewModel.filteredMessages?.indices.contains(currentSearchIndex) == true && 
-                                                viewModel.filteredMessages?[currentSearchIndex].id == message.id,
-                                            isOmitted: Binding(
-                                                get: { message.isOmitted },
-                                                set: { newValue in
-                                                    // When toggling a user message, also toggle the corresponding AI response
-                                                    if message.isUser && index + 1 < session.messages.count {
-                                                        viewModel.toggleMessagePairOmitted(
-                                                            userMessageId: message.id,
-                                                            aiMessageId: session.messages[index + 1].id,
-                                                        isOmitted: newValue  // The value is already correct here
-                                                        )
-                                                    }
+                                    // Add divider above each user message (except the first one)
+                                    if message.isUser && index > 0 {
+                                        Divider()
+                                            .opacity(0.5)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical)
+                                        
+                                    }
+                                    
+                                    MessageView(
+                                        message: message, 
+                                        searchTerm: viewModel.activeSearchTerm,
+                                        isCurrentSearchResult: viewModel.filteredMessages?.indices.contains(currentSearchIndex) == true && 
+                                            viewModel.filteredMessages?[currentSearchIndex].id == message.id,
+                                        isOmitted: Binding(
+                                            get: { message.isOmitted },
+                                            set: { newValue in
+                                                // When toggling a user message, also toggle the corresponding AI response
+                                                if message.isUser && index + 1 < session.messages.count {
+                                                    viewModel.toggleMessagePairOmitted(
+                                                        userMessageId: message.id,
+                                                        aiMessageId: session.messages[index + 1].id,
+                                                    isOmitted: newValue  // The value is already correct here
+                                                    )
                                                 }
-                                            ),
-                                            showCheckbox: message.isUser // Only show checkbox for user messages
-                                        )
-                                        .id(message.id)
+                                            }
+                                        ),
+                                        showCheckbox: message.isUser // Only show checkbox for user messages
+                                    )
+                                    .id(message.id)
                                 }
                             }
                         }
                         .padding(.horizontal, 18)
-                        .padding(.vertical, 8)
                         .onAppear {
                             withAnimation {
                                 proxy.scrollTo("bottom", anchor: .bottom)
@@ -227,12 +235,7 @@ struct LLMChatView: View {
                             .foregroundColor(.accentColor)
                             .font(.system(size: 12))
                             .padding(.leading, 22)
-                        
-//                        Toggle("Local ML", isOn: $useLocalAI)
-//                            .toggleStyle(.switch)
-//                            .help("Use local ML for AI/ML related queries")
-//                            .scaleEffect(0.8)
-                        
+                    
                         if viewModel.isProcessing {
                             Spacer()
                             ProgressView(value: viewModel.processingProgress, total: 1.0)
@@ -241,12 +244,10 @@ struct LLMChatView: View {
                                 .padding(.trailing, 60)
                         }
                     }
-                    .padding(.top, 10)
                     
                     HStack(alignment: .bottom) {
                         TextEditor(text: $userInput)
                             .frame(height: 80)
-                            .padding(8)
                             .textFieldStyle(.plain)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
@@ -297,11 +298,8 @@ struct LLMChatView: View {
                             }
                         }
                         .padding(.trailing, 30)
-                        .offset(y: -1)
                     }
                 }
-
-                .padding(.bottom, 8)
             }
         }
         .background(.bar)

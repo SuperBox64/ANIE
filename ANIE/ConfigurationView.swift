@@ -16,13 +16,6 @@ struct ConfigurationView: View {
     @State private var isLoadingModels = false
     @State private var showingModelSelector = false
     
-//    private var redactedApiKey: String {
-//        if credentialsManager.isConfigured {
-//            return "[API Key]"
-//        }
-//        return ""
-//    }
-    
     private func loadExistingCredentials() {
         if let credentials = credentialsManager.getCredentials() {
             if baseURL.isEmpty {
@@ -128,7 +121,7 @@ struct ConfigurationView: View {
                         Button {
                             showingModelSelector = true
                         } label: {
-                            Image(systemName: "chevron.down.circle.fill")
+                                Image(systemName: "chevron.down.circle.fill")
                                 .foregroundColor(.accentColor)
                         }
                         .buttonStyle(.plain)
@@ -137,15 +130,15 @@ struct ConfigurationView: View {
                             VStack(alignment: .leading) {
                                 Text("Available Models")
                                     .font(.headline)
-                                    .padding()
-                                
+                                    .padding(.leading, 16)
+                                    .padding(.top, 8)
+
                                 if isLoadingModels {
                                     HStack {
                                         ProgressView()
                                             .scaleEffect(0.5)
                                         Text("Loading models...")
                                     }
-                                    .padding()
                                 } else {
                                     List(availableModels, id: \.self) { modelName in
                                         Button {
@@ -167,7 +160,6 @@ struct ConfigurationView: View {
                                     .frame(width: 300, height: 500)  // Made significantly taller
                                 }
                             }
-                            .padding(.vertical)
                         }
                         
                         Button("Refresh") {
@@ -179,12 +171,11 @@ struct ConfigurationView: View {
                     }
                 }
                 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading) {
                     Text("Temperature")
                         .foregroundColor(.secondary)
-                        .fontWeight(.bold)
                     
-                    HStack(spacing: 12) {
+                    HStack() {
                         Text("\(temperature, specifier: "%.1f")")
                             .foregroundColor(.secondary)
                             .font(.system(size: 12))
@@ -241,7 +232,7 @@ struct ConfigurationView: View {
             .padding(.horizontal, 40)  // Add horizontal padding
             .padding(.bottom, 40)      // Add bottom padding
         }
-        .frame(width: 580, height: 680)  // Increased size to accommodate padding
+        .frame(width: 580, height: 700)  // Increased size to accommodate padding
         .background(Color(.windowBackgroundColor).opacity(0.2))  // Slightly darker background for contrast
         .alert("Configuration Error", isPresented: $showingAlert) {
             Button("OK", role: .cancel) { }
