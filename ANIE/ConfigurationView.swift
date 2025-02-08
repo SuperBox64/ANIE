@@ -15,6 +15,55 @@ struct ConfigurationView: View {
     @State private var availableModels: [String] = []
     @State private var isLoadingModels = false
     @State private var showingModelSelector = false
+    @State private var modelType: ModelType = .gpt
+    
+    private enum ModelType {
+        case gpt
+        case reasoning
+    }
+    
+    private var filteredModels: [String] {
+        switch modelType {
+        case .gpt:
+            return availableModels.filter { $0.hasPrefix("gpt") }
+        case .reasoning:
+            return availableModels.filter { modelId in
+                // Match Claude models (o1-) and o3 models
+                modelId.hasPrefix("o1-") || modelId.hasPrefix("o3-")
+            }.sorted { a, b in
+                // Custom sorting:
+                // 1. Claude base models first
+                // 2. Claude mini models second
+                // 3. Claude preview models third
+                // 4. o3 models fourth
+                // 5. Dated versions within each category sorted in reverse chronological order
+                
+                // Helper function to get model priority
+                func getPriority(_ model: String) -> Int {
+                    if model.hasPrefix("o1-mini") { return 1 }  // Claude mini models
+                    if model.hasPrefix("o1-preview") { return 2 }  // Claude preview models
+                    if model.hasPrefix("o3-") { return 3 }  // o3 models
+                    if model.hasPrefix("o1-") { return 0 }  // Other Claude models
+                    return 4  // Others
+                }
+                
+                let aPriority = getPriority(a)
+                let bPriority = getPriority(b)
+                
+                if aPriority != bPriority {
+                    return aPriority < bPriority
+                }
+                
+                // If same priority and contains date, sort in reverse chronological order
+                if a.contains("-202") && b.contains("-202") {
+                    return a > b
+                }
+                
+                // Otherwise sort alphabetically
+                return a < b
+            }
+        }
+    }
     
     private func loadExistingCredentials() {
         if let credentials = credentialsManager.getCredentials() {
@@ -28,10 +77,29 @@ struct ConfigurationView: View {
     }
     
     private func loadCachedModels() {
-        if let models = try? JSONDecoder().decode([String].self, from: cachedModelsData) {
-            availableModels = models
+        var models: [String] = []
+        
+        // Load cached models
+        if let cachedModels = try? JSONDecoder().decode([String].self, from: cachedModelsData) {
+            models = cachedModels
             print("📚 Loaded \(models.count) cached models")
         }
+        
+        // Add o3 models manually
+        let o3Models = [
+            "o3-mini",
+            "o3-mini-2025-01-31"
+        ]
+        
+        // Add any missing o3 models
+        for model in o3Models {
+            if !models.contains(model) {
+                models.append(model)
+            }
+        }
+        
+        availableModels = models.sorted()
+        print("📚 Total models (including manual additions): \(availableModels.count)")
     }
     
     private func saveCachedModels() {
@@ -111,8 +179,24 @@ struct ConfigurationView: View {
                     .font(.headline)
                 
                 VStack(alignment: .leading, spacing: 8) {
+                    Text("Model Type")
+                        .foregroundColor(.secondary)
+                    
+                    Picker("Model Type", selection: $modelType) {
+                        Text("GPT").tag(ModelType.gpt)
+                        Text("Reasoning").tag(ModelType.reasoning)
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: modelType) { _ in
+                        // Reset selected model when switching types
+                        if !filteredModels.contains(model) {
+                            model = filteredModels.first ?? ""
+                        }
+                    }
+                    
                     Text("Model")
                         .foregroundColor(.secondary)
+                        .padding(.top, 8)
                     
                     HStack(spacing: 8) {
                         TextField("Model name", text: $model)
@@ -121,14 +205,14 @@ struct ConfigurationView: View {
                         Button {
                             showingModelSelector = true
                         } label: {
-                                Image(systemName: "chevron.down.circle.fill")
+                            Image(systemName: "chevron.down.circle.fill")
                                 .foregroundColor(.accentColor)
                         }
                         .buttonStyle(.plain)
-                        .disabled(availableModels.isEmpty)
+                        .disabled(filteredModels.isEmpty)
                         .popover(isPresented: $showingModelSelector, arrowEdge: .top) {
                             VStack(alignment: .leading) {
-                                Text("Available Models")
+                                Text(modelType == .gpt ? "GPT Models" : "Reasoning Models")
                                     .font(.headline)
                                     .padding(.leading, 16)
                                     .padding(.top, 8)
@@ -140,7 +224,7 @@ struct ConfigurationView: View {
                                         Text("Loading models...")
                                     }
                                 } else {
-                                    List(availableModels, id: \.self) { modelName in
+                                    List(filteredModels, id: \.self) { modelName in
                                         Button {
                                             model = modelName
                                             showingModelSelector = false
@@ -157,7 +241,7 @@ struct ConfigurationView: View {
                                         }
                                         .buttonStyle(.plain)
                                     }
-                                    .frame(width: 300, height: 500)  // Made significantly taller
+                                    .frame(width: 300, height: 300)
                                 }
                             }
                         }
@@ -232,7 +316,7 @@ struct ConfigurationView: View {
             .padding(.horizontal, 40)  // Add horizontal padding
             .padding(.bottom, 40)      // Add bottom padding
         }
-        .frame(width: 580, height: 700)  // Increased size to accommodate padding
+        .frame(width: 580, height: .infinity)  // Increased size to accommodate padding
         .background(Color(.windowBackgroundColor).opacity(0.2))  // Slightly darker background for contrast
         .alert("Configuration Error", isPresented: $showingAlert) {
             Button("OK", role: .cancel) { }
@@ -263,10 +347,34 @@ struct ConfigurationView: View {
             let response = try JSONDecoder().decode(ModelsResponse.self, from: data)
             
             await MainActor.run {
-                availableModels = response.data
-                    .filter { $0.id.contains("gpt") }  // Only show GPT models
-                    .map { $0.id }
-                    .sorted()
+                var models = response.data.map { $0.id }
+                
+                // Add o3 models manually - preserve them even after refresh
+                let o3Models = [
+                    "o3-mini",
+                    "o3-mini-2025-01-31"
+                ]
+                
+                // Add any missing o3 models
+                for model in o3Models {
+                    if !models.contains(model) {
+                        models.append(model)
+                    }
+                }
+                
+                // Store all models
+                availableModels = models.sorted()
+                
+                // Print available models for debugging
+                print("📝 Available models:")
+                for model in availableModels {
+                    print("   • \(model)")
+                }
+                
+                // If current model is not in filtered list, select first available
+                if !filteredModels.contains(model) {
+                    model = filteredModels.first ?? ""
+                }
                 
                 // Cache the fetched models
                 saveCachedModels()

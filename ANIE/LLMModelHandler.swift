@@ -141,57 +141,64 @@ class LLMModelHandler: ChatGPTClient {
         }
     }
     
+    private var isReasoningModel: Bool {
+        currentModel.hasPrefix("o1") || currentModel.hasPrefix("o3")
+    }
+    
     func generateResponse(for message: String) async throws -> String {
-        let url = URL(string: "\(baseURL)/chat/completions")!
+        // Different endpoints for GPT vs reasoning models
+        let endpoint = isReasoningModel ? "/v1/completions" : "/v1/chat/completions"
+        let url = URL(string: "\(baseURL)\(endpoint)")!
         
-        // Use current model instead of LLMConfig
-        let requestBody: [String: Any] = [
-            "model": currentModel,
-            "messages": conversationHistory.map { [
-                "role": $0.role,
-                "content": $0.content
-            ] },
-            "temperature": LLMConfig.temperature
-        ]
+        var requestBody: [String: Any]
         
-//        if let requestJSON = try? JSONSerialization.data(withJSONObject: requestBody),
-//           let requestString = String(data: requestJSON, encoding: .utf8) {
-//            logToFile(requestString, type: "request")
-//        }
+        if isReasoningModel {
+            // Reasoning models use different request format
+            requestBody = [
+                "model": currentModel,
+                "prompt": message,
+                "temperature": LLMConfig.temperature,
+                "max_tokens": 2048,
+                "stream": false,
+                "stop": ["\n\n"]  // Add stop sequence for reasoning models
+            ]
+        } else {
+            // GPT models use chat format
+            requestBody = [
+                "model": currentModel,
+                "messages": conversationHistory.map { [
+                    "role": $0.role,
+                    "content": $0.content
+                ] },
+                "temperature": LLMConfig.temperature
+            ]
+        }
         
-        // Add user's message to history
-        conversationHistory.append(ChatMessage(content: message, role: "user"))
+        // Only maintain conversation history for GPT models
+        if !isReasoningModel {
+            conversationHistory.append(ChatMessage(content: message, role: "user"))
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         
-        let messages = conversationHistory.map { [
-            "role": $0.role,
-            "content": $0.content
-        ] }
-        
-        let body: [String: Any] = [
-            "model": currentModel,  // Use current model
-            "messages": messages,
-            "temperature": LLMConfig.temperature
-        ]
-        
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        print("🔄 Sending request to: \(url.absoluteString)")
+        print("📝 Request body: \(String(data: request.httpBody ?? Data(), encoding: .utf8) ?? "")")
         
         let (data, urlResponse) = try await session.data(for: request)
-        
-        // Log raw response
-//        if let rawResponse = String(data: data, encoding: .utf8) {
-//            logToFile(rawResponse, type: "raw_response")
-//        }
         
         guard let httpResponse = urlResponse as? HTTPURLResponse else {
             throw ChatError.networkError(URLError(.badServerResponse))
         }
         
-        // Try to parse OpenAI error format first if status code indicates error
+        // Log response for debugging
+        print("📥 Response status: \(httpResponse.statusCode)")
+        print("📥 Response data: \(String(data: data, encoding: .utf8) ?? "")")
+        
+        // Handle errors
         if !(200...299).contains(httpResponse.statusCode) {
             if let errorResponse = try? JSONDecoder().decode(OpenAIError.self, from: data) {
                 throw ChatError.serverError(httpResponse.statusCode, errorResponse.error.message)
@@ -199,14 +206,30 @@ class LLMModelHandler: ChatGPTClient {
             throw ChatError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8) ?? "Unknown error")
         }
         
-        let chatResponse = try JSONDecoder().decode(ChatResponse.self, from: data)
-        if let responseContent = chatResponse.choices.first?.message.content {
-            // Log processed response
-            //logToFile(responseContent, type: "processed_response")
-            
-            conversationHistory.append(ChatMessage(content: responseContent, role: "assistant"))
-            return responseContent
+        // Parse response based on model type
+        if isReasoningModel {
+            do {
+                let reasoningResponse = try JSONDecoder().decode(ReasoningResponse.self, from: data)
+                return reasoningResponse.text
+            } catch {
+                print("❌ Failed to decode reasoning response: \(error)")
+                // Try alternate response format
+                if let jsonResponse = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let choices = jsonResponse["choices"] as? [[String: Any]],
+                   let firstChoice = choices.first,
+                   let text = firstChoice["text"] as? String {
+                    return text
+                }
+                throw ChatError.decodingError(error)
+            }
+        } else {
+            let chatResponse = try JSONDecoder().decode(ChatResponse.self, from: data)
+            if let responseContent = chatResponse.choices.first?.message.content {
+                conversationHistory.append(ChatMessage(content: responseContent, role: "assistant"))
+                return responseContent
+            }
         }
+        
         return "No response"
     }
     
@@ -256,4 +279,31 @@ struct ChatMessage: Codable {
         self.content = content
         self.role = role
     }
+}
+
+// Update ReasoningResponse to handle both formats
+struct ReasoningResponse: Codable {
+    let text: String
+    let choices: [ReasoningChoice]?
+    
+    enum CodingKeys: String, CodingKey {
+        case text
+        case choices
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let choices = try? container.decode([ReasoningChoice].self, forKey: .choices),
+           let firstChoice = choices.first {
+            self.choices = choices
+            self.text = firstChoice.text
+        } else {
+            self.text = try container.decode(String.self, forKey: .text)
+            self.choices = nil
+        }
+    }
+}
+
+struct ReasoningChoice: Codable {
+    let text: String
 } 
