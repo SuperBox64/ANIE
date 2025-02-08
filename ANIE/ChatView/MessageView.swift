@@ -159,7 +159,7 @@ struct MessageView: View {
                             RoundedRectangle(cornerRadius: 11)
                                 .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
                         )
-                        .frame(width: .infinity, alignment: .trailing)
+                        .frame(alignment: .trailing)
                         .padding(.trailing, 5)
                         .padding(.bottom, 15)
                         .opacity(isOmitted ? 0.5 : 1.0)  // No change needed here since logic is correct
@@ -171,7 +171,7 @@ struct MessageView: View {
                             RoundedRectangle(cornerRadius: 11)
                                 .stroke(isCurrentSearchResult ? Color.yellow : Color.clear, lineWidth: 2)
                         )
-                        .frame(width: .infinity, alignment: .leading)
+                        .frame(alignment: .leading)
                         .opacity(isOmitted ? 0.5 : 1.0)  // No change needed here since logic is correct
                     Spacer()
                 }

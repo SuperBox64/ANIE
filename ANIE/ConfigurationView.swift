@@ -264,7 +264,7 @@ struct ConfigurationView: View {
             
             await MainActor.run {
                 availableModels = response.data
-                    .filter { $0.id.contains("gpt") }  // Only show GPT models
+                    .filter { $0.id.hasPrefix("gpt-") }  // Only show GPT models
                     .map { $0.id }
                     .sorted()
                 
