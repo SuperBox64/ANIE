@@ -25,6 +25,7 @@ struct LLMChatView: View {
     @State private var currentSearchIndex: Int = 0
     @State private var selectedMessageId: UUID? = nil
     @Environment(\.colorScheme) private var colorScheme
+    @State private var showEditHistory = false
     
     private func scrollToMessage(_ messageId: UUID) {
         selectedMessageId = messageId
@@ -186,17 +187,16 @@ struct LLMChatView: View {
                                         isOmitted: Binding(
                                             get: { message.isOmitted },
                                             set: { newValue in
-                                                // When toggling a user message, also toggle the corresponding AI response
                                                 if message.isUser && index + 1 < session.messages.count {
                                                     viewModel.toggleMessagePairOmitted(
                                                         userMessageId: message.id,
                                                         aiMessageId: session.messages[index + 1].id,
-                                                    isOmitted: newValue  // The value is already correct here
+                                                        isOmitted: newValue
                                                     )
                                                 }
                                             }
                                         ),
-                                        showCheckbox: message.isUser // Only show checkbox for user messages
+                                        showCheckbox: message.isUser && showEditHistory // Only show checkbox when edit mode is on
                                     )
                                     .id(message.id)
                                 }
@@ -233,11 +233,23 @@ struct LLMChatView: View {
                     HStack {
                         Text("Enter some text (⌘↩ to send)")
                             .foregroundColor(.accentColor)
-                            .font(.system(size: 12))
-                            .padding(.leading, 22)
-                    
+                            .font(.system(size: 14))
+                            .padding(.leading, 20)
+                        
+                        HStack {
+                            Toggle(isOn: $showEditHistory) {}
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                            .padding(.leading, 10)
+
+                            Text("Edit History")
+                                .font(.system(size: 12))
+                        }
+                   
+
+                        Spacer()
+
                         if viewModel.isProcessing {
-                            Spacer()
                             ProgressView(value: viewModel.processingProgress, total: 1.0)
                                 .progressViewStyle(.linear)
                                 .frame(width: 100)
