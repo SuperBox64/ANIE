@@ -18,7 +18,7 @@ struct AIMessageView: View {
                 Group {
                     if block.isCode {
                         let swiftKeywords = ["func ", "class ", "struct ", "print", "var ", "enum ", "case ", "Swift ", "```swift", "```"]
-                        let isSwift = swiftKeywords.contains { block.content.contains($0) }
+                        //let isSwift = swiftKeywords.contains { block.content.contains($0) }
                         
                         ZStack(alignment: .bottomTrailing) {
                             Text(formatSwiftCode(block.content, colorScheme: colorScheme, searchTerm: searchTerm, isCurrentSearchResult: isCurrentSearchResult))

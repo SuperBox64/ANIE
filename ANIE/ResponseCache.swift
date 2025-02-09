@@ -30,21 +30,38 @@ class ResponseCache {
     
     // Add persistence methods
     private func loadCache() {
+        print("📂 Loading BERT cache")
         if let data = UserDefaults.standard.data(forKey: cacheKey),
            let savedCache = try? JSONDecoder().decode([CachedResponse].self, from: data) {
-            // Aggressively filter out omitted responses
-            cache = savedCache.filter { !$0.isOmitted }
-            expireOldCacheEntries()
-            // Double check no omitted responses slipped through
-            cache = cache.filter { !$0.isOmitted }
-            print("📚 Loaded \(cache.count) items from BERT cache")
-            saveCache() // Immediately save to persist the filtered state
+            let expirationDate = Date().addingTimeInterval(-24 * 60 * 60) // 24 hours ago
+            
+            // Load, filter expired items, and remove omitted responses in one pass
+            cache = savedCache.filter { item in
+                let isValid = !item.isOmitted && item.timestamp > expirationDate
+                return isValid
+            }
+            
+            // Only save if we filtered out any items
+            if savedCache.count != cache.count {
+                print("🕒 Filtered out \(savedCache.count - cache.count) expired/omitted items")
+                saveCache()
+            }
+            
+            print("📚 Loaded \(cache.count) active items in BERT cache")
+            
+            // Print age summary of remaining items
+            let oldestTimestamp = cache.map { $0.timestamp }.min() ?? Date()
+            let newestTimestamp = cache.map { $0.timestamp }.max() ?? Date()
+            print("📊 Cache age summary:")
+            print("   • Oldest item: \(String(format: "%.1f", Date().timeIntervalSince(oldestTimestamp) / 3600)) hours old")
+            print("   • Newest item: \(String(format: "%.1f", Date().timeIntervalSince(newestTimestamp) / 3600)) hours old")
+        } else {
+            print("   No saved cache found")
         }
     }
     
     private func saveCache() {
-        // Aggressively filter before saving
-        cache = cache.filter { !$0.isOmitted }
+        // Filter out omitted responses one final time before saving
         let nonOmittedCache = cache.filter { !$0.isOmitted }
         if let data = try? JSONEncoder().encode(nonOmittedCache) {
             UserDefaults.standard.set(data, forKey: cacheKey)
@@ -53,14 +70,21 @@ class ResponseCache {
         }
     }
     
-    // Add cache expiration method
     private func expireOldCacheEntries() {
         let expirationDate = Date().addingTimeInterval(-24 * 60 * 60) // 24 hours ago
-        // Aggressively filter out both expired and omitted responses
-        cache = cache.filter { $0.timestamp > expirationDate }
-        cache = cache.filter { !$0.isOmitted }
-        print("🕒 Expired old cache entries. Remaining items: \(cache.count)")
-        saveCache() // Immediately save to persist the filtered state
+        let beforeCount = cache.count
+        
+        // Remove expired and omitted items in one pass
+        cache = cache.filter { 
+            !$0.isOmitted && $0.timestamp > expirationDate
+        }
+        
+        // Only save if we actually removed entries
+        if beforeCount != cache.count {
+            let removedCount = beforeCount - cache.count
+            print("🕒 Expired \(removedCount) old/omitted cache entries")
+            saveCache()
+        }
     }
     
     func findSimilarResponse(for query: String, sessionId: UUID) throws -> String? {

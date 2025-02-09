@@ -106,7 +106,7 @@ class ChatManager {
             let start = CFAbsoluteTimeGetCurrent()
             for message in testMessages {
                 do {
-                    _ = try await generator.generateEmbeddings(for: message)
+                    try generator.generateEmbeddings(for: message)
                 } catch {
                     results.append("• Error: \(error.localizedDescription)")
                 }

@@ -72,7 +72,7 @@ class LLMModelHandler: ChatGPTClient {
         print("   Added system prompt")
         print("   Final base URL after init: '\(self.baseURL)'")
         
-        // Add observers
+        // Add observers - Use specific notification name for model changes
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(credentialsDidChange),
@@ -80,10 +80,11 @@ class LLMModelHandler: ChatGPTClient {
             object: nil
         )
         
+        // Use specific notification for model changes
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(modelDidChange),
-            name: UserDefaults.didChangeNotification,
+            name: Notification.Name("LLMModelDidChange"), // Changed from UserDefaults.didChangeNotification
             object: nil
         )
         

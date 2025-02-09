@@ -65,6 +65,7 @@ class EmbeddingsGenerator {
         print("ANE available: \(MLDeviceCapabilities.hasANE)")
     }
     
+    @discardableResult
     func generateEmbeddings(for text: String) throws -> [Float] {
         guard let embedder = embedder else {
             throw EmbeddingsError.modelNotFound

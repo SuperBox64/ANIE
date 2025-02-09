@@ -449,6 +449,12 @@ struct ConfigurationView: View {
         }
         .onChange(of: model) { newValue in
             UserDefaults.standard.set(newValue, forKey: "selectedModel")
+            // Post specific model change notification
+            NotificationCenter.default.post(
+                name: Notification.Name("LLMModelDidChange"),
+                object: nil,
+                userInfo: ["model": newValue]
+            )
         }
     }
     
@@ -468,7 +474,7 @@ struct ConfigurationView: View {
             
             await MainActor.run {
                 availableModels = response.data
-                    .filter { $0.id.hasPrefix("gpt-") || $0.id.hasPrefix("deepseek-") }  // Only show GPT and Llama models
+                    .filter { $0.id.hasPrefix("gpt-") || $0.id.hasPrefix("deepseek-chat") }  // Only show GPT and Llama models
                     .map { $0.id }
                     .sorted()
                 

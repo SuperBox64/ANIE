@@ -285,7 +285,6 @@ class LLMViewModel: ObservableObject {
     
     @MainActor
     func processUserInput(_ input: String) async {
-        guard let currentSession = currentSession else { return }
         
         isProcessing = true
         isLoadingSession = true
