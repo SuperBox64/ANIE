@@ -1,32 +1,40 @@
 import Foundation
+import SwiftUI
 
 enum LLMConfig {
-    private static let credentialsManager = CredentialsManager()
+    private static let configManager = ConfigurationManager.shared
     
     static var apiKey: String {
-        credentialsManager.getCredentials()?.apiKey ?? ""
+        configManager.selectedProfile?.apiKey ?? ""
     }
     
     static var baseURL: String {
-        credentialsManager.getCredentials()?.baseURL ?? ""
+        let url = configManager.selectedProfile?.baseURL ?? ""
+        // Ensure we have a valid base URL, defaulting to DeepSeek if empty
+        return url.isEmpty ? "https://api.deepseek.com/v1" : url
     }
     
     // Add model configuration
     static var model: String {
-        UserDefaults.standard.string(forKey: "llm-model") ?? "gpt-3.5-turbo"
+        configManager.selectedProfile?.model ?? "gpt-3.5-turbo"
     }
     
     static func setModel(_ model: String) {
-        UserDefaults.standard.set(model, forKey: "llm-model")
+        if var profile = configManager.selectedProfile {
+            profile.model = model
+            configManager.selectedProfile = profile
+        }
     }
     
     // Add temperature configuration
     static var temperature: Double {
-        let temp = UserDefaults.standard.double(forKey: "llm-temperature")
-        return temp > 0 ? temp : 0.7  // Return default if 0 or negative
+        configManager.selectedProfile?.temperature ?? 0.7
     }
     
     static func setTemperature(_ temp: Double) {
-        UserDefaults.standard.set(temp, forKey: "llm-temperature")
+        if var profile = configManager.selectedProfile {
+            profile.temperature = temp
+            configManager.selectedProfile = profile
+        }
     }
 } 

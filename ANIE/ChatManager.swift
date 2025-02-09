@@ -1,11 +1,6 @@
 import Foundation
 //import CoreML
 
-protocol ChatGPTClient {
-    func generateResponse(for message: String) async throws -> String
-    func clearHistory()
-}
-
 class ChatManager {
     private let preprocessor: MessagePreprocessor
     private let cache: ResponseCache

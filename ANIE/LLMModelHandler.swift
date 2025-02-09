@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum ChatError: Error {
     case invalidURL
@@ -10,8 +11,16 @@ enum ChatError: Error {
 
 class LLMModelHandler: ChatGPTClient {
     private let session = URLSession.shared
-    private var apiKey: String
-    private var baseURL: String
+    private var apiKey: String = ""
+    private var baseURL: String = "" {
+        willSet {
+            print("🔍 Base URL changing:")
+            print("   From: '\(baseURL)'")
+            print("   To: '\(newValue)'")
+            print("   Stack trace:")
+            Thread.callStackSymbols.forEach { print("   \($0)") }
+        }
+    }
     private var conversationHistory: [ChatMessage] = []
     private var currentModel: String
     
@@ -32,12 +41,38 @@ class LLMModelHandler: ChatGPTClient {
     }
     
     init() {
-        self.apiKey = LLMAIConfig.apiKey
-        self.baseURL = LLMAIConfig.baseURL
+        print("🔧 Initializing LLMModelHandler")
         self.currentModel = UserDefaults.standard.string(forKey: "llm-model") ?? "gpt-3.5-turbo"
-        conversationHistory.append(systemPrompt)
         
-        // Add observer for credential changes
+        // Start with empty conversation history
+        conversationHistory = []
+        
+        // Initialize with current profile credentials
+        if let profile = ConfigurationManager.shared.selectedProfile {
+            print("   Found profile: \(profile.name)")
+            print("   Profile base URL: '\(profile.baseURL)'")
+            
+            // Clean the base URL once
+            let cleanedBaseURL = profile.baseURL.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                                              .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            print("   Cleaned base URL: '\(cleanedBaseURL)'")
+            
+            self.apiKey = profile.apiKey
+            self.baseURL = cleanedBaseURL
+            
+            print("   Credentials initialized")
+        } else {
+            print("❌ No profile found during initialization")
+            self.apiKey = ""
+            self.baseURL = ""
+        }
+        
+        // Add system prompt after credentials are set
+        conversationHistory.append(systemPrompt)
+        print("   Added system prompt")
+        print("   Final base URL after init: '\(self.baseURL)'")
+        
+        // Add observers
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(credentialsDidChange),
@@ -45,42 +80,76 @@ class LLMModelHandler: ChatGPTClient {
             object: nil
         )
         
-        // Add observer for model changes
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(modelDidChange),
             name: UserDefaults.didChangeNotification,
             object: nil
         )
+        
+        print("✅ Initialization complete")
     }
     
     @objc private func credentialsDidChange(_ notification: Notification) {
-        if let userInfo = notification.userInfo,
-           let apiKey = userInfo["apiKey"] as? String,
-           let baseURL = userInfo["baseURL"] as? String {
+        print("\n📝 Received credentials change notification")
+        
+        guard let userInfo = notification.userInfo,
+              let apiKey = userInfo["apiKey"] as? String,
+              let baseURL = userInfo["baseURL"] as? String else {
+            print("❌ Missing or invalid credentials in notification")
+            return
+        }
+        
+        // Clean the base URL once
+        let cleanedBaseURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                                  .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        
+        // Only update if values actually changed
+        if self.apiKey != apiKey || self.baseURL != cleanedBaseURL {
+            print("🔄 Updating credentials:")
+            print("   Current Base URL: '\(self.baseURL)'")
+            print("   New Base URL: '\(cleanedBaseURL)'")
+            
+            // Update credentials
             self.apiKey = apiKey
-            self.baseURL = baseURL
+            self.baseURL = cleanedBaseURL
+            
+            // Reset conversation state
+            conversationHistory.removeAll()
+            conversationHistory.append(systemPrompt)
+            
+            print("✅ Credentials updated and conversation state reset")
+        } else {
+            print("ℹ️ Ignoring redundant credential update - values haven't changed")
         }
     }
     
     @objc private func modelDidChange(_ notification: Notification) {
-        if let newModel = UserDefaults.standard.string(forKey: "llm-model") {
-            self.currentModel = newModel
-            print("🔄 Model updated to: \(newModel)")
-            
-            // Clear and reinitialize conversation state
-            conversationHistory.removeAll()
-            conversationHistory.append(systemPrompt)
-            
-            // Notify that model was updated
-            NotificationCenter.default.post(
-                name: Notification.Name("ModelDidUpdateNotification"),
-                object: nil,
-                userInfo: ["model": newModel]
-            )
-            
-            print("🔄 Reinitialized conversation state with new model: \(newModel)")
+        print("\n🔄 Model change notification received")
+        
+        guard let newModel = UserDefaults.standard.string(forKey: "llm-model"),
+              newModel != self.currentModel else {
+            print("ℹ️ Ignoring model change - no change or invalid model")
+            return
         }
+        
+        print("   Model changing from '\(self.currentModel)' to '\(newModel)'")
+        self.currentModel = newModel
+        
+        // Clear and reinitialize conversation state
+        print("   Clearing conversation history")
+        conversationHistory.removeAll()
+        conversationHistory.append(systemPrompt)
+        
+        // Notify that model was updated
+        print("   Posting ModelDidUpdateNotification")
+        NotificationCenter.default.post(
+            name: Notification.Name("ModelDidUpdateNotification"),
+            object: nil,
+            userInfo: ["model": newModel]
+        )
+        
+        print("   Reinitialized conversation state with new model: \(newModel)")
     }
     
     deinit {
@@ -88,8 +157,27 @@ class LLMModelHandler: ChatGPTClient {
     }
     
     func updateCredentials(apiKey: String, baseURL: String) {
-        self.apiKey = apiKey
-        self.baseURL = baseURL
+        print("🔄 Direct credential update:")
+        print("   Current Base URL: '\(self.baseURL)'")
+        
+        // Clean the base URL once
+        let cleanedBaseURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                                  .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        print("   New Base URL: '\(cleanedBaseURL)'")
+        
+        // Only update if values actually changed
+        if self.apiKey != apiKey || self.baseURL != cleanedBaseURL {
+            self.apiKey = apiKey
+            self.baseURL = cleanedBaseURL
+            
+            // Reset conversation state
+            conversationHistory.removeAll()
+            conversationHistory.append(systemPrompt)
+            
+            print("✅ Credentials updated directly and conversation state reset")
+        } else {
+            print("ℹ️ Ignoring redundant direct credential update")
+        }
     }
     
     // Add file logging helper
@@ -142,7 +230,41 @@ class LLMModelHandler: ChatGPTClient {
     }
     
     func generateResponse(for message: String) async throws -> String {
-        let url = URL(string: "\(baseURL)/chat/completions")!
+        print("\n💬 Generating response for message: '\(message)'")
+        print("Current conversation history (\(conversationHistory.count) messages):")
+        for (index, msg) in conversationHistory.enumerated() {
+            print("   \(index). [\(msg.role)]: \(msg.content.prefix(50))...")
+        }
+        
+        // Verify we have a valid base URL
+        guard !baseURL.isEmpty else {
+            print("❌ Base URL is empty!")
+            throw ChatError.invalidURL
+        }
+        
+        // Remove v1 from endpoint since it's already in the base URL
+        let endpoint = "/chat/completions"
+        print("🔍 URL Construction:")
+        print("   Base URL: \(baseURL)")
+        print("   Endpoint: \(endpoint)")
+        
+        // Ensure base URL has no trailing slash before adding endpoint
+        let cleanBaseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let fullURL = "\(cleanBaseURL)\(endpoint)"
+        print("   Full URL: \(fullURL)")
+        
+        guard let url = URL(string: fullURL) else {
+            print("❌ Invalid URL construction:")
+            print("   Base URL: \(baseURL)")
+            print("   Endpoint: \(endpoint)")
+            print("   Attempted full URL: \(fullURL)")
+            throw ChatError.invalidURL
+        }
+        
+        print("✅ Valid URL constructed: \(url.absoluteString)")
+        
+        // Add user's message to history BEFORE creating request
+        conversationHistory.append(ChatMessage(content: message, role: "user"))
         
         // Use current model instead of LLMConfig
         let requestBody: [String: Any] = [
@@ -154,57 +276,56 @@ class LLMModelHandler: ChatGPTClient {
             "temperature": LLMConfig.temperature
         ]
         
-//        if let requestJSON = try? JSONSerialization.data(withJSONObject: requestBody),
-//           let requestString = String(data: requestJSON, encoding: .utf8) {
-//            logToFile(requestString, type: "request")
-//        }
-        
-        // Add user's message to history
-        conversationHistory.append(ChatMessage(content: message, role: "user"))
+        // Log request details
+        if let requestJSON = try? JSONSerialization.data(withJSONObject: requestBody),
+           let requestString = String(data: requestJSON, encoding: .utf8) {
+            print("📤 Request body:")
+            print(requestString)
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let messages = conversationHistory.map { [
-            "role": $0.role,
-            "content": $0.content
-        ] }
-        
-        let body: [String: Any] = [
-            "model": currentModel,  // Use current model
-            "messages": messages,
-            "temperature": LLMConfig.temperature
-        ]
-        
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         
         let (data, urlResponse) = try await session.data(for: request)
         
-        // Log raw response
-//        if let rawResponse = String(data: data, encoding: .utf8) {
-//            logToFile(rawResponse, type: "raw_response")
-//        }
+        // Log response details
+        print("📥 Response received:")
+        print("   Status code: \((urlResponse as? HTTPURLResponse)?.statusCode ?? -1)")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("   Response body:")
+            print(responseString)
+        }
         
         guard let httpResponse = urlResponse as? HTTPURLResponse else {
+            print("❌ Invalid response type")
             throw ChatError.networkError(URLError(.badServerResponse))
         }
         
         // Try to parse OpenAI error format first if status code indicates error
         if !(200...299).contains(httpResponse.statusCode) {
             if let errorResponse = try? JSONDecoder().decode(OpenAIError.self, from: data) {
+                print("❌ API Error: \(errorResponse.error.message)")
                 throw ChatError.serverError(httpResponse.statusCode, errorResponse.error.message)
             }
-            throw ChatError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8) ?? "Unknown error")
+            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("❌ Server Error: \(errorBody)")
+            throw ChatError.serverError(httpResponse.statusCode, errorBody)
         }
         
         let chatResponse = try JSONDecoder().decode(ChatResponse.self, from: data)
         if let responseContent = chatResponse.choices.first?.message.content {
-            // Log processed response
-            //logToFile(responseContent, type: "processed_response")
-            
+            // Add AI response to history
             conversationHistory.append(ChatMessage(content: responseContent, role: "assistant"))
+            
+            print("✅ Response generated successfully")
+            print("Final conversation history (\(conversationHistory.count) messages):")
+            for (index, msg) in conversationHistory.enumerated() {
+                print("   \(index). [\(msg.role)]: \(msg.content.prefix(50))...")
+            }
+            
             return responseContent
         }
         return "No response"

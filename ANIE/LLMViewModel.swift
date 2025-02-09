@@ -217,7 +217,10 @@ class LLMViewModel: ObservableObject {
     private var lastRestoredSession: UUID?
     
     func selectSession(id: UUID) {
+        print("\n🔍 Selecting session: \(id)")
         selectedSessionId = id
+        
+        // CRITICAL: Set current session in chat manager first
         chatManager.setCurrentSession(id)
         
         // Only show loading if we're not already processing a message
@@ -230,6 +233,7 @@ class LLMViewModel: ObservableObject {
                 
                 // Restore conversation history for the selected session - only non-omitted messages
                 if let session = sessions.first(where: { $0.id == id }) {
+                    print("   Restoring conversation history")
                     let activeMessages = session.messages.filter { !$0.isOmitted }
                     modelHandler.restoreConversation(from: activeMessages)
                 }
@@ -239,6 +243,8 @@ class LLMViewModel: ObservableObject {
                     isLoadingSession = false
                     loadedSessions.insert(id)
                 }
+                
+                print("✅ Session selection complete")
             }
         }
     }
@@ -414,7 +420,10 @@ class LLMViewModel: ObservableObject {
     }
     
     func refreshCredentials() {
+        print("\n🔄 Refreshing credentials and reinitializing chat system")
+        
         if let credentials = credentialsManager.getCredentials() {
+            // Update model handler credentials
             modelHandler.updateCredentials(apiKey: credentials.apiKey, baseURL: credentials.baseURL)
             
             // Reinitialize chat manager with updated model handler
@@ -424,10 +433,20 @@ class LLMViewModel: ObservableObject {
                 apiClient: modelHandler
             )
             
-            // Restore conversation state if there's an active session
-            if let session = currentSession {
-                modelHandler.restoreConversation(from: session.messages)
+            // CRITICAL: Set current session in chat manager first
+            if let sessionId = selectedSessionId {
+                print("   Restoring session: \(sessionId)")
+                chatManager.setCurrentSession(sessionId)
+                
+                // Then restore conversation state if exists
+                if let session = currentSession {
+                    print("   Restoring conversation history")
+                    let activeMessages = session.messages.filter { !$0.isOmitted }
+                    modelHandler.restoreConversation(from: activeMessages)
+                }
             }
+            
+            print("✅ Chat system reinitialized with new credentials")
         }
     }
     
