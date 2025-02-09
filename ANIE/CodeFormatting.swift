@@ -309,6 +309,27 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
 
     // 2. Apply markdown formatting to AttributedString
     
+    // LaTeX Math Expressions
+    if let regex = try? NSRegularExpression(pattern: "\\\\\\((.*?)\\\\\\)", options: []) {
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            if let mathRange = Range(match.range(at: 1), in: text),
+               let attributedRange = Range(match.range, in: attributedResult) {
+                var mathText = AttributedString(String(text[mathRange]))
+                mathText.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+                mathText.foregroundColor = colorScheme == .dark ? .yellow : .blue
+                mathText.backgroundColor = colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.1)
+                
+                // Create full text with delimiters
+                var fullMathText = AttributedString("\\(")
+                fullMathText.append(mathText)
+                fullMathText.append(AttributedString("\\)"))
+                
+                attributedResult.replaceSubrange(attributedRange, with: fullMathText)
+            }
+        }
+    }
+    
     // Headers
     if let regex = try? NSRegularExpression(pattern: "^(#{1,6})\\s+(.+?)\\s*$", options: [.anchorsMatchLines]) {
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
@@ -319,21 +340,6 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
             }
         }
     }
-    
-    // // Links
-    // if let regex = try? NSRegularExpression(pattern: "\\[([^\\]]+)\\]\\(([^\\)]+)\\)", options: []) {
-    //     let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
-    //     for match in matches {
-    //         if let textRange = Range(match.range(at: 1), in: text),
-    //            let urlRange = Range(match.range(at: 2), in: text),
-    //            let attributedRange = Range(textRange, in: attributedResult) {
-    //             let url = String(text[urlRange])
-    //             attributedResult[attributedRange].link = URL(string: url)
-    //             attributedResult[attributedRange].foregroundColor = .blue
-    //             attributedResult[attributedRange].underlineStyle = .single
-    //         }
-    //     }
-    // }
     
     // Bold and Italic
     if let regex = try? NSRegularExpression(pattern: "(\\*\\*\\*|___)(.+?)\\1", options: []) {
@@ -357,7 +363,6 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
         }
     }
    
-    
     // Italic
     if let regex = try? NSRegularExpression(pattern: "(?<!\\*|_)(\\*|_)(?!\\*|_)(.+?)\\1(?!\\*|_)", options: []) {
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
@@ -369,8 +374,6 @@ public func formatMarkdown(_ text: String, colorScheme: ColorScheme = .dark, sea
         }
     }
 
-
- 
     if let regex = try? NSRegularExpression(pattern: " `([^`]+)`", options: []) {
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
         for match in matches {

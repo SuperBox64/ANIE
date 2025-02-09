@@ -350,7 +350,6 @@ class LLMModelHandler: ChatGPTClient {
         
         // Then add the conversation messages
         for message in messages {
-            log("Adding message: \(message.id) (isUser: \(message.isUser))")
             conversationHistory.append(ChatMessage(
                 content: message.content,
                 role: message.isUser ? "user" : "assistant"

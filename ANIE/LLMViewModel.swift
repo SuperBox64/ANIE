@@ -19,6 +19,7 @@ class LLMViewModel: ObservableObject {
     private let loadedSessionsKey = "loadedSessions"
     private let credentialsManager = CredentialsManager()
     private var chatManager: ChatManager
+    private var isInitializing = true
     
     var currentSession: ChatSession? {
         get {
@@ -43,14 +44,30 @@ class LLMViewModel: ObservableObject {
     }
     
     init() {
-        // Initialize dependencies
+        print("\n📱 Initializing LLMViewModel")
+        
+        // Initialize dependencies first
         let preprocessor = MessagePreprocessor()
         self.chatManager = ChatManager(
             preprocessor: preprocessor,
             apiClient: modelHandler
         )
         
-        // Add observer for model updates
+        // Load sessions once
+        loadSessions()
+        
+        // Set current session in chat manager
+        if let sessionId = selectedSessionId {
+            chatManager.setCurrentSession(sessionId)
+            
+            // Restore conversation state if exists
+            if let session = currentSession {
+                let activeMessages = session.messages.filter { !$0.isOmitted }
+                modelHandler.restoreConversation(from: activeMessages)
+            }
+        }
+        
+        // Add model update observer AFTER initial loading
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleModelUpdate),
@@ -58,7 +75,10 @@ class LLMViewModel: ObservableObject {
             object: nil
         )
         
-        loadSessions()
+        // Mark initialization as complete
+        isInitializing = false
+        
+        print("✅ LLMViewModel initialization complete")
     }
     
     deinit {
@@ -66,6 +86,9 @@ class LLMViewModel: ObservableObject {
     }
     
     @objc private func handleModelUpdate(_ notification: Notification) {
+        // Skip during initialization
+        guard !isInitializing else { return }
+        
         Task { @MainActor in
             // Show loading state
             isLoadingSession = true
@@ -77,15 +100,15 @@ class LLMViewModel: ObservableObject {
                 apiClient: modelHandler
             )
             
-            // CRITICAL: Set current session in chat manager first
+            // Set current session in chat manager
             if let sessionId = selectedSessionId {
                 chatManager.setCurrentSession(sessionId)
-            }
-            
-            // Then restore current session if exists
-            if let session = currentSession {
-                let activeMessages = session.messages.filter { !$0.isOmitted }
-                modelHandler.restoreConversation(from: activeMessages)
+                
+                // Restore conversation state if exists
+                if let session = currentSession {
+                    let activeMessages = session.messages.filter { !$0.isOmitted }
+                    modelHandler.restoreConversation(from: activeMessages)
+                }
             }
             
             // Reset loading state
@@ -101,71 +124,70 @@ class LLMViewModel: ObservableObject {
     }
     
     private func loadSessions() {
-        log("Starting loadSessions()")
+        print("📱 Loading sessions")
         
         // Load sessions
         if let data = UserDefaults.standard.data(forKey: sessionsKey),
            let savedSessions = try? JSONDecoder().decode([ChatSession].self, from: data) {
-            log("Successfully decoded \(savedSessions.count) sessions")
+            print("   Loaded \(savedSessions.count) sessions")
             sessions = savedSessions
             
             // Restore selected session
             if let selectedId = UserDefaults.standard.string(forKey: selectedSessionKey),
                let selectedUUID = UUID(uuidString: selectedId) {
-                log("Restoring selected session: \(selectedId)")
+                print("   Restoring selected session: \(selectedId)")
                 selectedSessionId = selectedUUID
-                chatManager.setCurrentSession(selectedUUID)  // Set current session in ChatManager
+                chatManager.setCurrentSession(selectedUUID)
             } else if let firstSession = sessions.first {
-                log("No saved selection, defaulting to first session: \(firstSession.id)")
+                print("   No saved selection, defaulting to first session: \(firstSession.id)")
                 selectedSessionId = firstSession.id
-                chatManager.setCurrentSession(firstSession.id)  // Set current session in ChatManager
+                chatManager.setCurrentSession(firstSession.id)
             }
             
             // Restore loaded sessions
             if let loadedData = UserDefaults.standard.array(forKey: loadedSessionsKey) as? [String] {
                 loadedSessions = Set(loadedData.compactMap { UUID(uuidString: $0) })
-                log("Restored loaded sessions: \(loadedSessions.count)")
+                print("   Restored \(loadedSessions.count) loaded sessions")
             }
             
-            // Load the selected session's data
+            // Load the selected session's data only once
             if let selectedId = selectedSessionId {
+                print("   Loading selected session data")
                 Task {
-                    log("Loading selected session data")
-                    await loadSessionData(selectedId, forceLoad: true)
+                    await loadSessionData(selectedId)
                 }
             }
         } else {
-            log("No sessions data found in UserDefaults")
+            print("   No sessions found in UserDefaults")
         }
     }
     
     private func loadSessionData(_ sessionId: UUID, forceLoad: Bool = false) async {
-        log("Starting loadSessionData for session: \(sessionId)")
-        
         if !forceLoad && loadedSessions.contains(sessionId) {
-            log("Session \(sessionId) already loaded, skipping")
+            print("   Session \(sessionId) already loaded, skipping")
             return
         }
         
         await MainActor.run {
-            log("Setting isLoadingSession = true")
             isLoadingSession = true
         }
         
         if let session = sessions.first(where: { $0.id == sessionId }) {
-            log("Found session to load: \(session.subject)")
-            log("Message count: \(session.messages.count)")
+            print("   Loading session: \(session.subject)")
+            print("   Message count: \(session.messages.count)")
+            
+            // Get only non-omitted messages
+            let activeMessages = session.messages.filter { !$0.isOmitted }
             
             await MainActor.run {
-                log("Restoring conversation for session: \(sessionId)")
-                modelHandler.restoreConversation(from: session.messages)
-                log("Adding session to loadedSessions")
+                modelHandler.restoreConversation(from: activeMessages)
                 loadedSessions.insert(sessionId)
-                log("Setting isLoadingSession = false")
                 isLoadingSession = false
             }
+            
+            print("   Session loaded successfully")
         } else {
-            log("❌ Session not found: \(sessionId)")
+            print("❌ Session not found: \(sessionId)")
             await MainActor.run {
                 isLoadingSession = false
             }

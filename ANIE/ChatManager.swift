@@ -7,8 +7,10 @@ class ChatManager {
     private let apiClient: ChatGPTClient
     private let localAI: LocalAIHandler
     private var currentSessionId: UUID?
+    private var isInitializing = true
     
     init(preprocessor: MessagePreprocessor, apiClient: ChatGPTClient) {
+        print("\n🔧 Initializing ChatManager")
         self.preprocessor = preprocessor
         self.cache = ResponseCache.shared
         self.apiClient = apiClient
@@ -18,10 +20,16 @@ class ChatManager {
         print("=== ML System Configuration ===")
         MLDeviceCapabilities.debugComputeInfo()
         print("============================")
+        
+        // Mark initialization as complete
+        self.isInitializing = false
     }
     
     func setCurrentSession(_ sessionId: UUID) {
-        self.currentSessionId = sessionId
+        // Skip notifications during initialization
+        if !isInitializing {
+            self.currentSessionId = sessionId
+        }
     }
     
     func processMessage(_ message: String, isOmitted: Bool = false) async throws -> String {

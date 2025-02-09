@@ -254,12 +254,6 @@ struct ChatSidebarView: View {
                                         .font(.system(size: 13, weight: .bold))
                                         .foregroundColor(session.id == viewModel.selectedSessionId ? .white : .green)
                                         .opacity(0.9)
-                                        .onAppear {
-                                            // Add delay before showing checkmark
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                                log("Checkmark appeared for session: \(session.id)")
-                                            }
-                                        }
                                 }
                             }
                             .padding(.horizontal, 10)
