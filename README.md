@@ -5,8 +5,7 @@
 - BERT via CoreML / Apple Natural Language Model for Caching
 - Takes advantage of Apple Neural Engine
 - Does not cache computer programming calls
-- Designed by Todd Bruss in North Carolina
+- Designed by CodeFreeze.ai in USA
 - Copyright (c) 2025. All Rights Reserved.
 
-<img width="959" alt="image" src="https://github.com/user-attachments/assets/4aeadea4-a3ef-4a91-8e3c-a480657494a3" />
-
+<img width="1078" alt="Screenshot 2025-02-08 at 7 47 03 PM" src="https://github.com/user-attachments/assets/b5a1a6cc-e028-41b9-a462-23ec0cb20c99" />
