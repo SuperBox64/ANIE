@@ -1,7 +1,8 @@
 # ANIE
  Artificial Neural Intelligence Engine
 
-- Uses ChatGPT gpt API or compatible for main calls (including DeepSeek), may be integrated with LM Studio as long as it supports OpenAI Compatible chat gpt Rest API.
+- Uses ChatGPT gpt API or compatible for main calls (including DeepSeek)
+- May be integrated with LM Studio as long as it supports OpenAI Compatible chat gpt Rest API (untested).
 - BERT via CoreML / Apple Natural Language Model for Caching
 - Takes advantage of Apple Neural Engine
 - Does not cache computer programming calls
