@@ -79,6 +79,11 @@ class LLMViewModel: ObservableObject {
         isInitializing = false
         
         print("✅ LLMViewModel initialization complete")
+        
+        // Perform initial model refresh after everything is set up
+        Task { @MainActor in
+            ConfigurationManager.shared.performInitialModelRefresh()
+        }
     }
     
     deinit {

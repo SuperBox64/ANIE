@@ -30,6 +30,48 @@ class ConfigurationManager: ObservableObject {
         loadProfiles()
     }
     
+    // Call this after app initialization is complete
+    func performInitialModelRefresh() {
+        ConfigurationManager.refreshModelsIfNeeded()
+    }
+    
+    static func refreshModelsIfNeeded() {
+        print("🔄 Checking if models need to be refreshed")
+        guard let profile = shared.selectedProfile,
+              !profile.apiKey.isEmpty,
+              !profile.baseURL.isEmpty else {
+            print("❌ No valid credentials found for model refresh")
+            return
+        }
+        
+        Task {
+            do {
+                print("📚 Refreshing available models")
+                let cleanBaseURL = profile.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                let modelsURL = URL(string: "\(cleanBaseURL)/models")!
+                
+                var request = URLRequest(url: modelsURL)
+                request.setValue("Bearer \(profile.apiKey)", forHTTPHeaderField: "Authorization")
+                
+                let (data, _) = try await URLSession.shared.data(for: request)
+                let response = try JSONDecoder().decode(ModelsResponse.self, from: data)
+                
+                let models = response.data
+                    .filter { $0.id.hasPrefix("gpt-") || $0.id.hasPrefix("deepseek-chat") }
+                    .map { $0.id }
+                    .sorted()
+                
+                // Cache the fetched models
+                if let encodedData = try? JSONEncoder().encode(models) {
+                    UserDefaults.standard.set(encodedData, forKey: "cached-models")
+                    print("✅ Successfully cached \(models.count) models")
+                }
+            } catch {
+                print("❌ Failed to refresh models: \(error.localizedDescription)")
+            }
+        }
+    }
+    
     private func loadProfiles() {
         print("📂 Loading configuration profiles")
         if let data = UserDefaults.standard.data(forKey: profilesKey),
@@ -239,6 +281,35 @@ struct ConfigurationView: View {
                                 loadExistingCredentials()  // This will also post the notification
                                 print("   New Base URL: \(profile.baseURL)")
                                 print("   New Model: \(profile.model)")
+                                
+                                // Silently refresh models if we have valid credentials
+                                if !profile.apiKey.isEmpty && !profile.baseURL.isEmpty {
+                                    Task {
+                                        do {
+                                            let cleanBaseURL = profile.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                                            let modelsURL = URL(string: "\(cleanBaseURL)/models")!
+                                            
+                                            var request = URLRequest(url: modelsURL)
+                                            request.setValue("Bearer \(profile.apiKey)", forHTTPHeaderField: "Authorization")
+                                            
+                                            let (data, _) = try await URLSession.shared.data(for: request)
+                                            let response = try JSONDecoder().decode(ModelsResponse.self, from: data)
+                                            
+                                            await MainActor.run {
+                                                availableModels = response.data
+                                                    .filter { $0.id.hasPrefix("gpt-") || $0.id.hasPrefix("deepseek-chat") }
+                                                    .map { $0.id }
+                                                    .sorted()
+                                                
+                                                // Cache the fetched models
+                                                saveCachedModels()
+                                            }
+                                        } catch {
+                                            // Silently ignore errors during background refresh
+                                            print("📝 Background model refresh failed (ignoring): \(error.localizedDescription)")
+                                        }
+                                    }
+                                }
                             }
                         }
                         
@@ -264,7 +335,7 @@ struct ConfigurationView: View {
                             configManager.deleteProfile(selectedId)
                         } label: {
                             Image(systemName: "trash")
-                                .foregroundColor(.red)
+                                .foregroundColor(.blue)
                         }
                         .frame(alignment: .trailing)
                         .buttonStyle(.plain)
@@ -352,14 +423,18 @@ struct ConfigurationView: View {
                                         } label: {
                                             HStack {
                                                 Text(modelName)
+                                                    .foregroundColor(.primary)
+                                                Spacer()
                                                 if model == modelName {
-                                                    Spacer()
                                                     Image(systemName: "checkmark")
                                                         .foregroundColor(.accentColor)
                                                 }
                                             }
+                                            .contentShape(Rectangle())  // Make entire HStack clickable
+                                            .frame(maxWidth: .infinity)  // Ensure HStack fills width
                                         }
                                         .buttonStyle(.plain)
+                                        .padding(.vertical, 4)  // Add some vertical padding
                                     }
                                     .frame(width: 300, height: 500)  // Made significantly taller
                                 }

@@ -92,6 +92,8 @@ struct ANIEApp: App {
                     if !viewModel.hasValidCredentials {
                         showingConfiguration = true
                     }
+                    // Perform initial model refresh after app is loaded
+                    ConfigurationManager.shared.performInitialModelRefresh()
                 }
                 .sheet(isPresented: $showingConfiguration) {
                     ConfigurationView(shouldRefresh: $shouldRefreshCredentials)
@@ -102,7 +104,6 @@ struct ANIEApp: App {
                         shouldRefreshCredentials = false
                     }
                 }
-
         }
         .windowStyle(.automatic)
         .defaultSize(width: 800, height: 600)
