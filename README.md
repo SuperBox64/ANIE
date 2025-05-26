@@ -3,7 +3,7 @@
 
 [![Swift 6](https://img.shields.io/badge/Swift-6.1-orange.svg)](https://swift.org)
 [![Website](https://img.shields.io/badge/website-xcf.ai-blue.svg)](https://xcf.ai)
-[![Version](https://img.shields.io/badge/version-1.2.0-green.svg)](https://github.com/superbox64/anie)
+[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)](https://github.com/superbox64/anie)
 [![GitHub downloads](https://img.shields.io/github/downloads/superbox64/anie/total.svg)](https://github.com/superbox64/anie/releases)
 [![GitHub stars](https://img.shields.io/github/stars/superbox64/anie.svg?style=social)](https://github.com/superbox64/anie/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/superbox64/anie.svg?style=social)](https://github.com/superbox64/anie/network)
